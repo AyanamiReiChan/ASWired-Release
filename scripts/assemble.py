@@ -19,6 +19,7 @@ for arch in ['amd64','arm64']:
 for path in (root/'artifacts').iterdir():
     if not path.name.startswith('components_'):shutil.copy2(path,out/path.name)
 shutil.copy2(root/'SOURCES.json',out/'SOURCES.json')
+shutil.copy2(root/'THIRD-PARTY-NOTICES.md',out/'THIRD-PARTY-NOTICES.md')
 lines=[hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name for p in sorted(out.iterdir()) if p.is_file()]
 (out/'SHA256SUMS').write_text('\n'.join(lines)+'\n',encoding='utf-8')
 print('Assembled',len(lines),'verified release assets')

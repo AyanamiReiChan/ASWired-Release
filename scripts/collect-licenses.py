@@ -13,6 +13,7 @@ for source in sys.argv[2:]:
         directory=pathlib.Path(location)
         for notice in directory.iterdir():
             if notice.is_file() and notice.name.lower().startswith(('license','copying','notice','copyright')):
-                target=dest/'go'/module['Path']/notice.name
-                target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(notice,target)
-
+                target=dest/'go'/(module['Path']+'@'+module.get('Version','local'))/notice.name
+                target.parent.mkdir(parents=True,exist_ok=True)
+                target.write_bytes(notice.read_bytes())
+                target.chmod(0o644)
