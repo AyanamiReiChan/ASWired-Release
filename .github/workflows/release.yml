@@ -1,0 +1,266 @@
+name: Build and verify release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact ASWired release version
+        required: true
+        default: v1.0.0
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+env:
+  VERSION: ${{ inputs.version }}
+jobs:
+  sources:
+    runs-on: ubuntu-24.04
+    outputs:
+      web: ${{ steps.refs.outputs.web }}
+      server: ${{ steps.refs.outputs.server }}
+      agent: ${{ steps.refs.outputs.agent }}
+      komari: ${{ steps.refs.outputs.komari }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+          test "$(cat VERSION)" = "$VERSION"
+          for component in web server agent komari; do
+            ref=$(jq -r ".$component.commit" SOURCES.json)
+            [[ "$ref" =~ ^[0-9a-f]{40}$ ]]
+            echo "$component=$ref" >> "$GITHUB_OUTPUT"
+          done
+          bash -n install.sh
+          bash -n update.sh
+
+  frontends:
+    needs: sources
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: AyanamiReiChan/ASWired
+          ref: ${{ needs.sources.outputs.web }}
+          path: source-web
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: AyanamiReiChan/komari
+          ref: ${{ needs.sources.outputs.komari }}
+          path: source-komari
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@11.19.0
+      - name: Check and build ASWired website
+        working-directory: source-web/frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run check
+          node --test tests/*.test.mjs tests/*.test.ts
+          pnpm run build
+      - name: Package production website and dependencies
+        run: |
+          mkdir -p output/web
+          cp -a source-web/frontend/build source-web/frontend/package.json output/web/
+          cp source-web/frontend/pnpm-lock.yaml source-web/frontend/pnpm-workspace.yaml output/web/
+          cd output/web
+          pnpm install --prod --frozen-lockfile --ignore-scripts
+          cd ..
+          tar -czf web.tar.gz web
+      - name: Build integrated Komari website
+        working-directory: source-komari/frontend
+        run: npm ci && npm run build
+      - name: Package embedded theme
+        run: |
+          mkdir -p output/defaultTheme
+          cp -a source-komari/frontend/dist output/defaultTheme/
+          cp source-komari/frontend/komari-theme.json output/defaultTheme/
+          tar -czf output/komari-theme.tar.gz -C output defaultTheme
+      - uses: actions/upload-artifact@v4
+        with:
+          name: websites
+          path: output/*.tar.gz
+          if-no-files-found: error
+
+  components:
+    needs: [sources, frontends]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      ARCH: ${{ matrix.arch }}
+      GOMAXPROCS: '3'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: AyanamiReiChan/ASWired-Server
+          ref: ${{ needs.sources.outputs.server }}
+          path: source-server
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: AyanamiReiChan/ASWired-Agent
+          ref: ${{ needs.sources.outputs.agent }}
+          path: source-agent
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: AyanamiReiChan/komari
+          ref: ${{ needs.sources.outputs.komari }}
+          path: source-komari
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+          cache-dependency-path: |
+            source-server/go.sum
+            source-agent/go.sum
+            source-komari/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: websites
+          path: websites
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Prepare embedded Komari theme
+        run: tar -xzf websites/komari-theme.tar.gz -C source-komari/web/public
+      - name: Test controller and Agent contracts
+        env:
+          ASWIRED_PROTOCOL_FIXTURES: ${{ runner.temp }}/protocol-fixtures
+        run: |
+          mkdir -p "$ASWIRED_PROTOCOL_FIXTURES"
+          (cd source-server && go test -p 2 ./... && go vet ./...)
+          (cd source-agent && go test -p 2 ./... && go vet ./...)
+          (cd source-komari && go test -p 2 ./... && go vet ./...)
+      - name: Race checks
+        if: matrix.arch == 'amd64'
+        run: cd source-server && go test -race -p 2 ./...
+      - name: Build pinned native binaries and Node runtime
+        env:
+          SERVER_COMMIT: ${{ needs.sources.outputs.server }}
+          KOMARI_COMMIT: ${{ needs.sources.outputs.komari }}
+        run: |
+          set -euo pipefail
+          mkdir -p components/bin components/runtime components/licenses output
+          (cd source-server && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.buildVersion=$VERSION -X main.buildCommit=$SERVER_COMMIT" -o ../components/bin/aswired-server ./cmd/aswired-server)
+          (cd source-agent && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION#v}" -o "../output/aswired-agent_${VERSION}_linux_${ARCH}" ./cmd/aswired-agent)
+          (cd source-agent && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION#v}" -o "../output/aswired-speedtest_${VERSION}_linux_${ARCH}" ./cmd/aswired-speedtest)
+          (cd source-agent && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "../output/aswired-maintain_${VERSION}_linux_${ARCH}" ./cmd/aswired-maintain)
+          (cd source-komari && CGO_ENABLED=1 CC=musl-gcc go build -trimpath -tags netgo,osusergo -ldflags="-s -w -linkmode external -extldflags '-static' -X github.com/komari-monitor/komari/utils.CurrentVersion=1.2.5-fix2-aswired.${VERSION#v} -X github.com/komari-monitor/komari/utils.VersionHash=$KOMARI_COMMIT" -o ../components/bin/komari .)
+          cp -L "$(command -v node)" components/runtime/node
+          cp "$(dirname "$(dirname "$(command -v node)")")/LICENSE" components/runtime/LICENSE
+          cp source-server/LICENSE components/licenses/ASWired-Server-MIT
+          cp source-agent/LICENSE components/licenses/ASWired-Agent-MIT
+          cp source-agent/third_party/xray-core/LICENSE components/licenses/Xray-MPL-2.0
+          cp source-komari/LICENSE components/licenses/Komari-MIT
+          cp source-komari/frontend/LICENSE components/licenses/Komari-Web-MIT
+          python3 scripts/collect-licenses.py components/licenses source-server source-agent source-komari
+          python3 -c 'import json,os,platform,subprocess; d=json.load(open("SOURCES.json")); d.update(version=os.environ["VERSION"],arch=os.environ["ARCH"],node=subprocess.check_output(["node","--version"],text=True).strip(),go=subprocess.check_output(["go","version"],text=True).strip()); json.dump(d,open("components/BUILD-INFO.json","w"),indent=2)'
+          tar -czf "output/aswired-server_${VERSION}_linux_${ARCH}.tar.gz" -C components/bin aswired-server
+          tar -czf "output/komari_1.2.5-fix2-aswired.${VERSION#v}_linux_${ARCH}.tar.gz" -C components/bin komari
+          tar -czf "output/components_linux_${ARCH}.tar.gz" -C components .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: components-${{ matrix.arch }}
+          path: output/*
+          if-no-files-found: error
+
+  assemble:
+    needs: components
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: components-*
+          path: artifacts
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: websites
+          path: websites
+      - name: Assemble deployment bundles
+        run: python3 scripts/assemble.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: dist/*
+          if-no-files-found: error
+
+  smoke:
+    needs: assemble
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: artifacts
+      - name: Verify checksums and package boundaries
+        run: cd artifacts && sha256sum -c SHA256SUMS
+      - name: Start pristine compiled stack and test first login
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          tar -xzf "artifacts/aswired_${VERSION}_linux_${ARCH}.tar.gz"
+          python3 scripts/smoke.py aswired
+      - name: Verify systemd installer and proxy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx
+          sudo bash aswired/install.sh panel.example.test probe.example.test
+          sudo systemctl is-active aswired-server aswired-web komari nginx
+          curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: panel.example.test' http://127.0.0.1/api/status
+          curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: probe.example.test' http://127.0.0.1/api/aswired/auth
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: panel.example.test' http://127.0.0.1/api/internal/komari/redeem)" = 404
+          sudo test -s /var/lib/aswired/setup-token
+          sudo python3 -c 'import sqlite3; d=sqlite3.connect("/var/lib/aswired/aswired.db"); assert d.execute("select count(*) from users").fetchone()[0]==0'
+          if sudo bash aswired/install.sh panel.example.test probe.example.test; then echo 'Installer overwrote an existing installation'; exit 1; fi
+      - name: Diagnostics on failure
+        if: failure()
+        run: sudo journalctl -u aswired-server -u aswired-web -u komari -n 60 --no-pager || true
+
+  draft:
+    needs: smoke
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: dist
+      - name: Create verified draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$VERSION" --json isDraft >/dev/null 2>&1; then
+            test "$(gh release view "$VERSION" --json isDraft --jq '.isDraft')" = true
+            gh release upload "$VERSION" dist/* --clobber
+          else
+            gh release create "$VERSION" dist/* --draft --target "$GITHUB_SHA" --title "ASWired $VERSION + Komari 1.2.5-fix2" --notes-file CHANGELOG.md
+          fi

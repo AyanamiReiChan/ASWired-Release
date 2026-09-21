@@ -1,0 +1,9 @@
+artifacts/
+dist/
+*.tar.gz
+*.zip
+*.db
+*.key
+*.pem
+.env
+private/

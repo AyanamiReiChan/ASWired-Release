@@ -1,0 +1,19 @@
+[Unit]
+Description=ASWired website
+After=network.target aswired-server.service
+[Service]
+Type=simple
+User=aswired-web
+Group=aswired-web
+WorkingDirectory=/opt/aswired/current/web
+EnvironmentFile=/etc/aswired/web.env
+ExecStart=/opt/aswired/current/runtime/node /opt/aswired/current/web/build/index.js
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+[Install]
+WantedBy=multi-user.target

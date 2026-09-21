@@ -1,0 +1,22 @@
+[Unit]
+Description=Komari 1.2.5-fix2 for ASWired
+After=network-online.target aswired-server.service
+Wants=network-online.target
+[Service]
+Type=simple
+User=komari
+Group=komari
+WorkingDirectory=/var/lib/komari
+EnvironmentFile=/etc/aswired/komari.env
+ExecStart=/opt/aswired/current/bin/komari server --listen 127.0.0.1:25774
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/komari
+[Install]
+WantedBy=multi-user.target
