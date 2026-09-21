@@ -76,6 +76,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y nginx
+          sudo systemctl enable --now nginx
           sudo bash aswired/install.sh panel.example.test probe.example.test
           sudo systemctl is-active aswired-server aswired-web komari nginx
           curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: panel.example.test' http://127.0.0.1/api/status
