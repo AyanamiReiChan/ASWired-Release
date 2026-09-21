@@ -1,0 +1,115 @@
+name: Verify existing release build
+on:
+  workflow_dispatch:
+    inputs:
+      build_run:
+        description: Run with successful source builds and assembled artifacts
+        required: true
+      version:
+        description: Exact release version
+        required: true
+        default: v1.0.0
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+env:
+  VERSION: ${{ inputs.version }}
+jobs:
+  verified-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify prior build and unchanged package inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN: ${{ inputs.build_run }}
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_RUN" =~ ^[0-9]+$ ]]
+          test "$(cat VERSION)" = "$VERSION"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN" > /tmp/build-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN/jobs?per_page=100" > /tmp/build-jobs.json
+          python3 - <<'PY'
+          import json,os
+          run=json.load(open('/tmp/build-run.json'))
+          assert run['repository']['full_name']==os.environ['GITHUB_REPOSITORY']
+          assert run['path']=='.github/workflows/release.yml' and run['event']=='workflow_dispatch'
+          jobs={job['name']:job['conclusion'] for job in json.load(open('/tmp/build-jobs.json'))['jobs']}
+          for name in ['sources','frontends','components (amd64, ubuntu-24.04)','components (arm64, ubuntu-24.04-arm)','assemble']:
+              assert jobs.get(name)=='success',name
+          PY
+          ref=$(jq -r .head_sha /tmp/build-run.json)
+          git diff --exit-code "$ref" HEAD -- VERSION SOURCES.json install.sh update.sh deploy docs README.md LICENSE THIRD-PARTY-NOTICES.md CHANGELOG.md scripts/assemble.py scripts/collect-licenses.py
+
+  smoke:
+    needs: verified-build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run }}
+          path: artifacts
+      - name: Verify checksums and package boundaries
+        run: cd artifacts && sha256sum -c SHA256SUMS
+      - name: Start pristine compiled stack and test first login
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          tar -xzf "artifacts/aswired_${VERSION}_linux_${ARCH}.tar.gz"
+          python3 scripts/smoke.py aswired
+      - name: Verify systemd installer and proxy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx
+          sudo bash aswired/install.sh panel.example.test probe.example.test
+          sudo systemctl is-active aswired-server aswired-web komari nginx
+          curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: panel.example.test' http://127.0.0.1/api/status
+          curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: probe.example.test' http://127.0.0.1/api/aswired/auth
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: panel.example.test' http://127.0.0.1/api/internal/komari/redeem)" = 404
+          sudo test -s /var/lib/aswired/setup-token
+          sudo python3 -c 'import sqlite3; d=sqlite3.connect("/var/lib/aswired/aswired.db"); assert d.execute("select count(*) from users").fetchone()[0]==0'
+          if sudo bash aswired/install.sh panel.example.test probe.example.test; then echo 'Installer overwrote an existing installation'; exit 1; fi
+      - name: Diagnostics on failure
+        if: failure()
+        run: sudo journalctl -u aswired-server -u aswired-web -u komari -n 60 --no-pager || true
+
+  draft:
+    needs: smoke
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run }}
+          path: dist
+      - name: Create verified draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$VERSION" --json isDraft >/dev/null 2>&1; then
+            test "$(gh release view "$VERSION" --json isDraft --jq '.isDraft')" = true
+            gh release upload "$VERSION" dist/* --clobber
+          else
+            gh release create "$VERSION" dist/* --draft --target "$GITHUB_SHA" --title "ASWired $VERSION + Komari 1.2.5-fix2" --notes-file CHANGELOG.md
+          fi

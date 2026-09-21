@@ -1,5 +1,5 @@
 """Exercise pristine compiled services without persisting test accounts in artifacts."""
-import json,os,pathlib,secrets,sqlite3,subprocess,sys,tempfile,time,urllib.request,urllib.error,urllib.parse
+import json,os,pathlib,re,secrets,sqlite3,subprocess,sys,tempfile,time,urllib.request,urllib.error,urllib.parse
 package=pathlib.Path(sys.argv[1]).resolve()
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args):return None
@@ -42,7 +42,15 @@ with tempfile.TemporaryDirectory(prefix='aswired-smoke-') as temporary:
         version=request(probe,'/api/version')[1]['data']['version']
         assert version=='1.2.5-fix2-aswired.'+(package/'VERSION').read_text().strip().removeprefix('v'),version
         start([str(package/'runtime/node'),str(package/'web/build/index.js')],package/'web',{'HOST':'127.0.0.1','PORT':'24993','ORIGIN':web,'NODE_ENV':'production'})
-        assert b'ASWired' in wait(web,'/')[1]
+        # SvelteKit renders this application's text in the browser (ssr=false).
+        # Verify the served shell and its actual executable entry assets here.
+        html=wait(web,'/')[1]
+        assert isinstance(html,bytes) and b'data-theme="glass"' in html
+        entries=re.findall(rb'\./(_app/immutable/entry/[^"\s]+\.js)',html)
+        assert len(set(entries))>=2,'Missing compiled SvelteKit entry assets'
+        for entry in set(entries):
+            code,payload,_=request(web,'/'+entry.decode())
+            assert code==200 and isinstance(payload,bytes) and len(payload)>20,'Missing JavaScript entry'
         assert request(probe,'/api/login','POST',{'username':'admin','password':'admin'})[0]==403
         db=sqlite3.connect(data/'aswired.db');assert db.execute('select count(*) from users').fetchone()[0]==0
         password=secrets.token_urlsafe(24)
