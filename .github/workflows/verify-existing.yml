@@ -8,7 +8,7 @@ on:
       version:
         description: Exact release version
         required: true
-        default: v1.0.0
+        default: v1.0.1
 permissions:
   contents: read
   actions: read

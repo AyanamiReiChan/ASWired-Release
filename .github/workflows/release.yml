@@ -5,7 +5,7 @@ on:
       version:
         description: Exact ASWired release version
         required: true
-        default: v1.0.0
+        default: v1.0.1
 permissions:
   contents: read
 concurrency:
@@ -76,7 +76,7 @@ jobs:
           tar -czf web.tar.gz web
       - name: Build integrated Komari website
         working-directory: source-komari/frontend
-        run: npm ci && npm run build
+        run: npm ci && node --test tests/*.test.mjs && npm run build
       - name: Package embedded theme
         run: |
           mkdir -p output/defaultTheme

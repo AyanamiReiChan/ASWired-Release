@@ -4,7 +4,7 @@
 
 | 路径 | 内容 |
 | --- | --- |
-| `/opt/aswired/releases/v1.0.0` | 只读版本目录，程序、网站、Node 运行时和脚本 |
+| `/opt/aswired/releases/v1.0.1` | 只读版本目录，程序、网站、Node 运行时和脚本 |
 | `/opt/aswired/current` | 当前版本软链接 |
 | `/etc/aswired/*.env` | 主控、网站、Komari 配置及服务密钥，root-only |
 | `/var/lib/aswired` | 主控数据库、加密密钥、身份密钥、日志、备份与 Agent 安装包 |
@@ -38,7 +38,7 @@ sudo systemctl start aswired-server komari aswired-web
 sudo bash /opt/aswired/current/update.sh v1.0.1
 ```
 
-这个示例不代表 v1.0.1 已发布。脚本从 **ASWired-Release** 下载固定版本的完整包和 SHA256SUMS，校验、解包并检查程序可启动后，停止服务生成一致备份，再切换版本目录并重新启动。原环境文件、账户、密钥与 HTTPS 配置保留。备份位于 `/var/backups/aswired/<UTC时间>/`。
+升级前请确认目标版本已经正式发布。脚本从 **ASWired-Release** 下载固定版本的完整包和 SHA256SUMS，校验、解包并检查程序可启动后，停止服务生成一致备份，再切换版本目录并重新启动。原环境文件、账户、密钥与 HTTPS 配置保留。备份位于 `/var/backups/aswired/<UTC时间>/`。
 
 更新脚本的自动数据备份排除主控的 `agent-releases/`、`backups/` 与 `logs/`，避免重复打包构建产物和历史备份；数据库、密钥与 Komari 数据包含在内。如需保留业务日志，另行备份。安装用 Agent 二进制更新为新版本，**不会自动升级已经运行的远端 Agent**。
 
