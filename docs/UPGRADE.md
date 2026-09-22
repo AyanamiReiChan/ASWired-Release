@@ -4,7 +4,7 @@
 
 | 路径 | 内容 |
 | --- | --- |
-| `/opt/aswired/releases/v1.0.2` | 只读版本目录，程序、网站、Node 运行时和脚本 |
+| `/opt/aswired/releases/v1.0.3` | 只读版本目录，程序、网站、Node 运行时和脚本 |
 | `/opt/aswired/current` | 当前版本软链接 |
 | `/etc/aswired/*.env` | 主控、网站、Komari 配置及服务密钥，root-only |
 | `/var/lib/aswired` | 主控数据库、加密密钥、身份密钥、日志、备份与 Agent 安装包 |
@@ -36,8 +36,8 @@ v1.0.2 起，正式组合安装且使用 SQLite 时，可在「设置 → 系统
 从 v1.0.1 或更早版本迁入时，先在服务器执行一次升级脚本：
 
 ```bash
-# 将 v1.0.2 换成实际已发布且准备升级到的版本。
-sudo bash /opt/aswired/current/update.sh v1.0.2
+# 将 v1.0.3 换成实际已发布且准备升级到的版本。
+sudo bash /opt/aswired/current/update.sh v1.0.3
 # 旧脚本不会安装新增的 path unit；升级后执行一次：
 sudo bash /opt/aswired/current/deploy/enable-updater.sh
 ```
@@ -59,7 +59,7 @@ sudo bash /opt/aswired/current/deploy/enable-updater.sh
 文件冷备份不能备份外部 PostgreSQL。先停止写入，使用受保护的 `PGPASSFILE` / pg_service.conf 和 `pg_dump --format=custom` 备份实际使用的数据库，验证 `pg_restore --list`，然后执行：
 
 ```bash
-sudo bash /opt/aswired/current/update.sh v1.0.2 --database-backup /secure/path/aswired.dump
+sudo bash /opt/aswired/current/update.sh v1.0.3 --database-backup /secure/path/aswired.dump
 ```
 
 脚本会保留你指定的备份文件，但不会验证它是否来自正确数据库；管理员必须核对目标、时间与可恢复性。启用加密数据库配置时不要删除 `database-active.enc` 强行回 SQLite，否则会切回旧数据。
@@ -105,6 +105,14 @@ sudo systemctl start aswired-server
 ```
 
 密码不放进命令参数或日志。该操作只重置已有账户，并撤销旧会话，不创建默认管理员。若使用手动配置 PostgreSQL，还需为命令提供与服务相同的数据库环境；通过页面迁移保存的加密配置则由数据目录自动加载。同时遗失 TOTP/Passkey 时可显式增加 `--clear-mfa`，登录后重新配置。
+
+## v1.0.3 流量统计优化
+
+已有 v1.0.2 标准 SQLite 安装可在「设置 → 系统维护」检查并升级至 v1.0.3。统计缓存仅复用台账版本和周期范围一致的结果；写入、删除、恢复台账会自动失效，原始台账、计费规则、配额与上报/维护周期保持原样。首次查询会重建内存缓存，不需要手动清理流量数据。
+
+本版只修改主控源码，远端 Agent 不必随本次优化升级。发布包仍包含网站及 Komari 以满足整套自更新要求，其源码与 v1.0.2 相同。升级效果应在恢复正常业务后观察；本地静态台账基准不等于实际主控 CPU 降幅。
+
+性能回退时应保留当前数据库，避免恢复旧备份丢失升级后的台账。v1.0.3 只新增派生版本表和触发器，旧主控可以继续使用该数据库；页面更新器拒绝降级，手动回退应由管理员按版本目录切换程序并保留当前数据。
 
 ## v1.0.2 行为变化
 
