@@ -37,7 +37,7 @@ with tempfile.TemporaryDirectory(prefix='aswired-smoke-') as temporary:
             'ASWIRED_ALLOWED_ORIGINS':web,'ASWIRED_KOMARI_PUBLIC_URL':probe,'ASWIRED_KOMARI_BRIDGE_SECRET':bridge})
         status=wait(control,'/api/status')[1];assert status['initialized'] is False
         start([str(package/'bin/komari'),'server','--listen','127.0.0.1:24992'],komari,{
-            'ASWIRED_IDENTITY_URL':control,'ASWIRED_LOGIN_URL':web,'KOMARI_PUBLIC_URL':probe,'ASWIRED_BRIDGE_SECRET':bridge})
+            'ASWIRED_IDENTITY_URL':control,'ASWIRED_LOGIN_URL':web+'/komari','KOMARI_PUBLIC_URL':probe,'ASWIRED_BRIDGE_SECRET':bridge})
         assert wait(probe,'/api/aswired/auth')[1]['enabled'] is True
         version=request(probe,'/api/version')[1]['data']['version']
         assert version=='1.2.5-fix2-aswired.'+(package/'VERSION').read_text().strip().removeprefix('v'),version
@@ -63,20 +63,31 @@ with tempfile.TemporaryDirectory(prefix='aswired-smoke-') as temporary:
         assert request(control,'/api/state',headers=auth)[0]==200
         stored=db.execute('select password_hash from users where username=?',(setup['username'],)).fetchone()[0]
         assert stored!=password and stored.startswith('$2')
-        probe_password=secrets.token_urlsafe(24)
-        row={'id':'release-probe','username':'chosen-probe-admin','name':'Probe operator','password':probe_password,'application':'komari','role':'普通用户','status':'正常'}
+        member_password=secrets.token_urlsafe(24)
+        row={'id':'release-member','username':'chosen-release-member','name':'Member','password':member_password,'application':'komari','role':'普通用户','status':'正常'}
+        assert request(control,'/api/collections/members','POST',{'row':row},auth)[0]==400
+        assert db.execute('select count(*) from users where username=?',(row['username'],)).fetchone()[0]==0
+        row['application']='aswired'
         status,_,_=request(control,'/api/collections/members','POST',{'row':row},auth);assert status==200,status
-        status,login,_=request(control,'/api/login','POST',{'username':row['username'],'password':probe_password});assert status==200 and login['kind']=='komari'
+        status,member,_=request(control,'/api/login','POST',{'username':row['username'],'password':member_password});assert status==200
+        assert request(control,'/api/komari/login','POST',headers={'MM-Authorization':member['token']})[0]==403
+        assert request(control,'/api/komari/login','POST')[0]==401
+        status,login,_=request(control,'/api/komari/login','POST',headers=auth)
+        assert status==200 and login['kind']=='komari' and login['action']==probe+'/auth/aswired/session'
+        assert request(control,'/api/state',headers=auth)[0]==200
         form=urllib.parse.urlencode({'ticket':login['ticket']}).encode()
         headers={'Origin':web,'Content-Type':'application/x-www-form-urlencoded'}
         status,_,response_headers=request(probe,'/auth/aswired/session','POST',form,headers)
         cookie=response_headers.get('Set-Cookie','');assert status==303 and 'HttpOnly' in cookie and 'session_token=' in cookie
         cookie=cookie.split(';')[0]
-        status,me,_=request(probe,'/api/me',headers={'Cookie':cookie});assert status==200 and me['logged_in'] is True
+        status,me,_=request(probe,'/api/me',headers={'Cookie':cookie});assert status==200 and me['logged_in'] is True and me['username']==setup['username']
         _,_,replay=request(probe,'/auth/aswired/session','POST',form,headers);assert 'Set-Cookie' not in replay
         assert request(control,'/api/state',headers={'MM-Authorization':cookie.split('=',1)[1]})[0]==401
+        assert request(control,'/api/logout','POST',headers=auth)[0]==200
+        assert request(control,'/api/state',headers=auth)[0]==401
+        status,me,_=request(probe,'/api/me',headers={'Cookie':cookie});assert status==200 and me['logged_in'] is False
         db.close()
-        print('PASS: compiled stack, pristine first-run setup, hashed chosen password, initialization lock, Komari integrated login, ticket replay and account isolation.')
+        print('PASS: compiled stack, pristine first-run setup, hashed chosen password, initialization lock, shared administrator login, member denial, ticket replay, session isolation and cross-service logout.')
     finally:
         for proc in reversed(processes):proc.terminate()
         for proc in processes:

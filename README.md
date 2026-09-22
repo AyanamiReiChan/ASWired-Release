@@ -112,13 +112,14 @@ sudo certbot renew --dry-run
 
 首次进入 Komari 后台：
 
-1. 用刚创建的 ASWired 管理员打开「用户管理 → 新增用户」。
-2. 「账户系统」选择 **Komari 探针**，自行设置该账户的用户名和密码。它在 Komari 内拥有管理权限，但不拥有 ASWired 管理权限。
-3. 使用另一个浏览器配置文件或无痕窗口，访问 ASWired 登录页，用 Komari 类型账户登录；系统通过一次性票据跳转到 `https://probe.example.com/admin`。
-4. 在 Komari 的设置/API 密钥页面创建一个供主控读取数据的 API key，按密码保管。
-5. 回到 ASWired 管理员工作区，在「设置 → 探针监控」填写 Komari 地址 **`http://127.0.0.1:25774`** 和该 API key，保存后测试连接/同步。
-6. 在 Komari 新建监控服务器并按页面生成的命令安装 Komari Agent。等待节点在线。
-7. 在 ASWired 对应服务器的探针绑定设置中，选择该 Komari 节点 UUID。主控才会把 CPU、内存、网卡流量与监控历史显示到这台服务器。
+1. 使用 ASWired 管理员登录，点击侧栏「Komari 管理」，或访问 `https://panel.example.com/komari`。
+2. 系统使用当前管理员身份，通过一分钟有效、单次使用的票据进入 Komari 后台，同时保留 ASWired 登录。普通成员和旧独立 Komari 账户没有后台权限；无需另建账户。
+3. 在 Komari 的设置/API 密钥页面创建一个供主控读取数据的 API key，按密码保管。
+4. 回到 ASWired 管理员工作区，在「设置 → 探针监控」填写 Komari 地址 **`http://127.0.0.1:25774`** 和该 API key，保存后测试连接/同步。
+5. 在 Komari 新建监控服务器并按页面生成的命令安装 Komari Agent。等待节点在线。
+6. 在 ASWired 对应服务器的探针绑定设置中，选择该 Komari 节点 UUID。主控才会把 CPU、内存、网卡流量与监控历史显示到这台服务器。
+
+两套后台共享管理员身份、密码、两步验证和会话撤销。从任一后台退出都会撤销该账户的现有登录；停用、降权或改密也会使旧会话失效。
 
 Komari API key 与统一登录的桥接密钥是两个不同的凭据，不要混填。Nginx 默认阻止公网访问 `/api/internal/komari/`；身份服务在同机回环地址上使用。
 
@@ -152,7 +153,7 @@ WebSocket/Pull 只需要节点主动连接主控 HTTPS；无需对公网开放�
 | 现象 | 检查 |
 | --- | --- |
 | 网页 502 | `systemctl status aswired-web aswired-server`，再看 `journalctl -u aswired-web -u aswired-server -n 100 --no-pager` |
-| Komari 跳转失败 | 两个域名 HTTPS、两份桥接密钥一致、Komari 账户类型正确；检查两个服务日志 |
+| Komari 跳转失败 | 两个域名 HTTPS、两份桥接密钥一致、当前账户是获准的 ASWired 管理员，且 `ASWIRED_LOGIN_URL` 指向主站 `/komari`；检查两个服务日志 |
 | 首次页面变成普通登录 | 数据库里已有账户，不是新安装；不要删除数据来重置密码 |
 | setup-token 不存在 | 主控是否成功启动、数据目录权限、环境文件路径 |
 | Agent 离线 | 节点时钟、DNS、主控证书、WebSocket 代理；`journalctl -u aswired-agent -n 100 --no-pager` |

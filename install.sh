@@ -42,7 +42,7 @@ cat > /etc/aswired/komari.env <<EOF
 KOMARI_LISTEN=127.0.0.1:25774
 KOMARI_DB_FILE=/var/lib/komari/data/komari.db
 ASWIRED_IDENTITY_URL=http://127.0.0.1:12889
-ASWIRED_LOGIN_URL=https://$panel
+ASWIRED_LOGIN_URL=https://$panel/komari
 KOMARI_PUBLIC_URL=https://$probe
 ASWIRED_BRIDGE_SECRET=$bridge
 EOF

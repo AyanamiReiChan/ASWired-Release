@@ -42,6 +42,8 @@ sudo bash /opt/aswired/current/update.sh v1.0.1
 
 更新脚本的自动数据备份排除主控的 `agent-releases/`、`backups/` 与 `logs/`，避免重复打包构建产物和历史备份；数据库、密钥与 Komari 数据包含在内。如需保留业务日志，另行备份。安装用 Agent 二进制更新为新版本，**不会自动升级已经运行的远端 Agent**。
 
+升级到 v1.0.1 后，Komari 使用同一个 ASWired 管理员账户。将 `/etc/aswired/komari.env` 的 `ASWIRED_LOGIN_URL` 更新为主站的 `https://你的主站域名/komari`，重启 Komari，再从 ASWired 侧栏「Komari 管理」进入。旧独立 Komari 账户保留历史记录，但不再授予后台权限，也不会自动提升为管理员。
+
 在「服务器 → 升级 Agent」选择一致架构的节点，点击“读取最新稳定版与校验值”，核对版本后下发。Agent 下载固定版本并校验 SHA256，升级监督进程等待新版本重新认证；90 秒内未成功认证时回退。手动刷新查看最终状态，不把任务受理视为升级成功。
 
 不要用原版 Komari 的安装脚本、`latest` 镜像或上游二进制覆盖整合版。单独使用主控 CLI `upgrade` 只替换主控，不会同步网站和 Komari，组合部署应使用上面的 `update.sh`。
@@ -79,7 +81,7 @@ sudo bash /opt/aswired/current/update.sh v1.0.1 --database-backup /secure/path/a
 2. 在新主机按 README 安装，暂不切换正式 DNS。
 3. 在隔离地址初始化管理员，从设置恢复应用备份；恢复后用备份中的账户登录。保留旧数据密钥和主控身份，否则旧 Agent 不信任新主控。
 4. 停止新 Komari，把经过备份且版本相容的旧 Komari 数据复制到 `/var/lib/komari/data`，设为 komari 所有。只迁移数据，不覆盖整合版程序。
-5. 在新主控创建或验证 Komari 类型账户。独立 Komari 的本地密码账户不会自动变成中央账户；不要继续使用旧默认登录方式。
+5. 使用已有 ASWired 管理员通过侧栏「Komari 管理」验证共享登录。独立 Komari 的本地密码账户和旧中央 Komari 类型账户不会自动变成管理员。
 6. 核对两份桥接密钥、两个公网地址、主控监听和 Nginx。验证新主控、Komari、真实 Agent 和客户端订阅，再切换 DNS/反向代理。
 7. 保留旧部署的停机快照供回退，确认稳定后再清理。
 
