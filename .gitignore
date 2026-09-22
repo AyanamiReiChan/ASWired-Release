@@ -7,3 +7,5 @@ dist/
 *.pem
 .env
 private/
+__pycache__/
+*.pyc

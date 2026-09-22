@@ -36,6 +36,8 @@ jobs:
           done
           bash -n install.sh
           bash -n update.sh
+          bash -n deploy/enable-updater.sh
+          python3 scripts/test-updater.py
 
   frontends:
     needs: sources
@@ -233,6 +235,8 @@ jobs:
           sudo systemctl enable --now nginx
           sudo bash aswired/install.sh panel.example.test probe.example.test
           sudo systemctl is-active aswired-server aswired-web komari nginx
+          sudo systemctl is-active aswired-update.path
+          sudo env GITHUB_ACTIONS=true python3 scripts/smoke-updater.py
           curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: panel.example.test' http://127.0.0.1/api/status
           curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: probe.example.test' http://127.0.0.1/api/aswired/auth
           test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: panel.example.test' http://127.0.0.1/api/internal/komari/redeem)" = 404
@@ -262,6 +266,7 @@ jobs:
           if gh release view "$VERSION" --json isDraft >/dev/null 2>&1; then
             test "$(gh release view "$VERSION" --json isDraft --jq '.isDraft')" = true
             gh release upload "$VERSION" dist/* --clobber
+            gh release edit "$VERSION" --target "$GITHUB_SHA" --notes-file CHANGELOG.md
           else
             gh release create "$VERSION" dist/* --draft --target "$GITHUB_SHA" --title "ASWired $VERSION + Komari 1.2.5-fix2" --notes-file CHANGELOG.md
           fi

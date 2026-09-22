@@ -1,0 +1,13 @@
+[Unit]
+Description=ASWired managed release updater
+Wants=network-online.target
+After=network-online.target
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /opt/aswired/current/deploy/update-request.py
+ExecStopPost=/usr/bin/python3 /opt/aswired/current/deploy/update-request.py --recover
+TimeoutStartSec=45min
+PrivateTmp=true
+ProtectHome=true

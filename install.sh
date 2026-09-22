@@ -6,11 +6,11 @@ panel=${1:-}; probe=${2:-}
 [[ $EUID == 0 ]] || { echo 'Run as root: sudo bash install.sh panel.example.com probe.example.com' >&2; exit 2; }
 valid_domain() { [[ $1 =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ && $1 == *.* && $1 != *..* ]]; }
 valid_domain "$panel" && valid_domain "$probe" && [[ $panel != "$probe" ]] || { echo 'Supply two distinct DNS hostnames (without https:// or paths).' >&2; exit 2; }
-for program in systemctl curl openssl python3 nginx install tar; do command -v "$program" >/dev/null || { echo "Missing $program; read README.md prerequisites." >&2; exit 2; }; done
+for program in systemctl curl openssl python3 nginx install tar flock; do command -v "$program" >/dev/null || { echo "Missing $program; read README.md prerequisites." >&2; exit 2; }; done
 [[ -d /run/systemd/system ]] || { echo 'A running systemd host is required.' >&2; exit 2; }
 version=$(cat "$base/VERSION")
 [[ $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo 'Invalid package version.' >&2; exit 2; }
-for path in /opt/aswired/current /etc/aswired /var/lib/aswired /var/lib/komari /etc/systemd/system/aswired-server.service /etc/systemd/system/aswired-web.service /etc/systemd/system/komari.service /etc/nginx/sites-available/aswired.conf; do
+for path in /opt/aswired/current /etc/aswired /var/lib/aswired /var/lib/aswired-updater /var/lib/komari /etc/systemd/system/aswired-server.service /etc/systemd/system/aswired-web.service /etc/systemd/system/komari.service /etc/nginx/sites-available/aswired.conf; do
   [[ ! -e $path && ! -L $path ]] || { echo "Existing installation found at $path. Use update.sh or the migration guide; nothing was overwritten." >&2; exit 2; }
 done
 "$base/runtime/node" --version >/dev/null
@@ -26,6 +26,7 @@ chmod -R a+rX "/opt/aswired/releases/$version"
 chown -R root:root "/opt/aswired/releases/$version"
 ln -s "releases/$version" /opt/aswired/current
 install -d -o aswired -g aswired -m 0700 /var/lib/aswired
+install -d -o root -g aswired -m 0750 /var/lib/aswired-updater
 install -d -o komari -g komari -m 0700 /var/lib/komari
 install -d -m 0700 /etc/aswired
 bridge=$(openssl rand -hex 32)
@@ -59,12 +60,13 @@ cp -a "$base/agent-releases/." /var/lib/aswired/agent-releases/
 chown -R root:aswired /var/lib/aswired/agent-releases
 chmod -R u=rwX,g=rX,o= /var/lib/aswired/agent-releases
 install -m 0644 "$base"/deploy/systemd/*.service /etc/systemd/system/
+install -m 0644 "$base"/deploy/systemd/*.path /etc/systemd/system/
 sed -e "s/PANEL_DOMAIN/$panel/g" -e "s/PROBE_DOMAIN/$probe/g" "$base/deploy/nginx.conf" > /etc/nginx/sites-available/aswired.conf
 chmod 0644 /etc/nginx/sites-available/aswired.conf
 ln -s /etc/nginx/sites-available/aswired.conf /etc/nginx/sites-enabled/aswired.conf
 nginx -t
 systemctl daemon-reload
-systemctl enable --now aswired-server aswired-web komari
+systemctl enable --now aswired-server aswired-web komari aswired-update.path
 systemctl reload nginx
 curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:12889/healthz >/dev/null
 echo "Installed ASWired $version and integrated Komari. No administrator was created."

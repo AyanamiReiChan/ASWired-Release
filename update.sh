@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
+exec 9>/run/lock/aswired-update.lock
+flock -n 9 || { echo 'An update is already running.' >&2; exit 2; }
 version=${1:-}
 [[ $EUID == 0 && $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo 'Usage: sudo bash update.sh vX.Y.Z [--database-backup /absolute/pg-backup]' >&2; exit 2; }
 [[ -L /opt/aswired/current && -f /etc/aswired/server.env ]] || { echo 'Managed installation not found. Read the migration guide.' >&2; exit 2; }
@@ -16,8 +18,8 @@ temporary=$(mktemp -d)
 trap 'rm -rf -- "$temporary"' EXIT
 asset="aswired_${version}_linux_${arch}.tar.gz"
 url="https://github.com/AyanamiReiChan/ASWired-Release/releases/download/$version"
-curl --fail --location --proto '=https' --proto-redir '=https' "$url/SHA256SUMS" -o "$temporary/SHA256SUMS"
-curl --fail --location --proto '=https' --proto-redir '=https' "$url/$asset" -o "$temporary/$asset"
+curl --fail --location --connect-timeout 20 --max-time 60 --proto '=https' --proto-redir '=https' "$url/SHA256SUMS" -o "$temporary/SHA256SUMS"
+curl --fail --location --connect-timeout 20 --max-time 600 --proto '=https' --proto-redir '=https' "$url/$asset" -o "$temporary/$asset"
 expected=$(awk -v name="$asset" '$2==name {print $1}' "$temporary/SHA256SUMS")
 [[ $expected =~ ^[0-9a-fA-F]{64}$ ]] || { echo 'Missing or duplicate checksum.' >&2; exit 1; }
 printf '%s  %s\n' "$expected" "$temporary/$asset" | sha256sum --check --status
@@ -39,8 +41,20 @@ backup="/var/backups/aswired/$stamp"
 install -d -m 0700 "$backup"
 printf '%s\n' "$previous" > "$backup/previous-release"
 echo "Stopping services for a consistent backup: $backup"
+# Before switching programs it is safe to restart the old services on failure.
+# After switching, retain migrated data and the backup for explicit recovery.
+switched=0
+recover_before_switch() {
+  result=$?
+  if (( result != 0 && switched == 0 )); then systemctl start aswired-server komari aswired-web || true; fi
+  rm -rf -- "$temporary"
+}
+trap recover_before_switch EXIT
 systemctl stop aswired-web komari aswired-server
-if ! tar --exclude=aswired/agent-releases --exclude=aswired/backups --exclude=aswired/logs -czf "$backup/data.tar.gz" -C /var/lib aswired komari; then
+if [[ -e /var/lib/aswired/database-pending.enc ]] || { [[ -e /var/lib/aswired/database-active.enc ]] && [[ -z $db_backup ]]; }; then
+  echo 'Database state changed while downloading; upgrade cancelled before switching.' >&2; exit 1
+fi
+if ! tar --exclude=aswired/update-request.json --exclude=aswired/agent-releases --exclude=aswired/backups --exclude=aswired/logs -czf "$backup/data.tar.gz" -C /var/lib aswired komari; then
   systemctl start aswired-server komari aswired-web
   echo 'Backup failed; update cancelled.' >&2; exit 1
 fi
@@ -54,16 +68,23 @@ chmod -R a+rX "$target"
 chown -R root:root "$target"
 ln -s "$target" /opt/aswired/.next
 mv -Tf /opt/aswired/.next /opt/aswired/current
+switched=1
 # Refresh only installation assets; existing node Agents are upgraded manually.
 for cpu in amd64 arm64; do
   install -o root -g aswired -m 0750 "$target/agent-releases/linux-$cpu/aswired-agent" "/var/lib/aswired/agent-releases/linux-$cpu/.aswired-agent-new"
   mv -f "/var/lib/aswired/agent-releases/linux-$cpu/.aswired-agent-new" "/var/lib/aswired/agent-releases/linux-$cpu/aswired-agent"
 done
 install -m 0644 "$target"/deploy/systemd/*.service /etc/systemd/system/
+install -m 0644 "$target"/deploy/systemd/*.path /etc/systemd/system/
+install -d -o root -g aswired -m 0750 /var/lib/aswired-updater
 systemctl daemon-reload
+systemctl enable --now aswired-update.path
 if ! systemctl start aswired-server komari aswired-web || ! curl --fail --silent --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:12889/healthz >/dev/null; then
   echo "Startup verification failed. Backup: $backup. Follow docs/UPGRADE.md before reverting databases." >&2
   exit 1
 fi
+systemctl is-active --quiet aswired-server komari aswired-web
+curl --fail --silent --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:25774/api/version >/dev/null
+curl --fail --silent --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:3000/ >/dev/null
 echo "Updated to $version. Consistent backup: $backup"
 echo 'HTTPS proxy, accounts, keys and environment settings were preserved. Check both websites and one Agent before deleting backups.'

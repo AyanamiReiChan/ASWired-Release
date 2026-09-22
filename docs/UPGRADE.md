@@ -31,11 +31,15 @@ sudo systemctl start aswired-server komari aswired-web
 
 ## 从一个正式组合版本升级
 
-在设置中手动检查版本并阅读发行说明。选择明确版本，不自动覆盖运行目录：
+v1.0.2 起，正式组合安装且使用 SQLite 时，可在「设置 → 系统维护」检查版本、阅读发行说明并确认升级。独立更新服务从固定的 GitHub 仓库下载整套包，校验 SHA256、备份后切换主控、网站和 Komari。页面轮询本机进度，不反复请求 GitHub；服务重启时会暂时断开，重新连接后显示实际结果。
+
+从 v1.0.1 或更早版本迁入时，先在服务器执行一次升级脚本：
 
 ```bash
 # 将 v1.0.2 换成实际已发布且准备升级到的版本。
 sudo bash /opt/aswired/current/update.sh v1.0.2
+# 旧脚本不会安装新增的 path unit；升级后执行一次：
+sudo bash /opt/aswired/current/deploy/enable-updater.sh
 ```
 
 升级前请确认目标版本已经正式发布。脚本从 **ASWired-Release** 下载固定版本的完整包和 SHA256SUMS，校验、解包并检查程序可启动后，停止服务生成一致备份，再切换版本目录并重新启动。原环境文件、账户、密钥与 HTTPS 配置保留。备份位于 `/var/backups/aswired/<UTC时间>/`。
@@ -108,3 +112,13 @@ sudo systemctl start aswired-server
 - 「探针监控」直接打开 `ASWIRED_KOMARI_PUBLIC_URL` 指定的 Komari 首页；公开地址未配置时会显示提示，不使用内部采集地址。
 - Agent 升级页支持全选符合条件的在线节点，并显示无法选择的原因。未启用 `-supervise` 的旧服务仍需先完成启动方式迁移。
 - 新生成的 Komari Agent 安装命令默认使用 5 秒上报间隔。已有 Komari Agent 的运行参数不会随主控升级自动修改。
+
+## 网页更新服务
+
+`aswired-server` 仍以 aswired 用户运行，不能写 `/opt/aswired` 或获得任意 root 命令能力。管理员升级请求仅包含确认后的版本号和时间；`aswired-update.path` 唤醒 root 的 `aswired-update.service`。更新器独立拒绝无效版本、过期请求、额外字段、路径链接和降级，下载源固定为 ASWired-Release。
+
+状态位于 root 所有、aswired 只读的 `/var/lib/aswired-updater/status.json`。下载或校验失败时原服务不变；切换前失败会尝试恢复原服务。切换后若健康检查失败，保留一致备份与失败现场，不自动把可能迁移过的数据库交给旧程序；按上面的恢复流程处理。
+
+PostgreSQL 或正在进行数据库迁移的部署不开放网页升级，继续使用经过验证的数据库备份和 CLI 流程。非标准路径、非 systemd 或仅源码运行的安装会显示不可用原因。
+
+排查：`systemctl status aswired-update.path aswired-update.service`，`journalctl -u aswired-update.service -n 100 --no-pager`。恢复后再次检查版本提交新请求。

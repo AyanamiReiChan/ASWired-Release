@@ -1,0 +1,7 @@
+[Unit]
+Description=Watch ASWired administrator update requests
+[Path]
+PathExists=/var/lib/aswired/update-request.json
+Unit=aswired-update.service
+[Install]
+WantedBy=multi-user.target
