@@ -23,13 +23,8 @@ curl --fail --location --connect-timeout 20 --max-time 600 --proto '=https' --pr
 expected=$(awk -v name="$asset" '$2==name {print $1}' "$temporary/SHA256SUMS")
 [[ $expected =~ ^[0-9a-fA-F]{64}$ ]] || { echo 'Missing or duplicate checksum.' >&2; exit 1; }
 printf '%s  %s\n' "$expected" "$temporary/$asset" | sha256sum --check --status
-python3 - "$temporary/$asset" "$temporary/extracted" <<'PY'
-import pathlib,sys,tarfile
-dest=pathlib.Path(sys.argv[2]);dest.mkdir()
-with tarfile.open(sys.argv[1],'r:gz') as archive:
-    if not hasattr(tarfile,'data_filter'): raise SystemExit('Update Python to a security-supported version with tar extraction filters.')
-    archive.extractall(dest,filter='data')
-PY
+base=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+python3 "$base/deploy/extract-release.py" "$temporary/$asset" "$temporary/extracted"
 package="$temporary/extracted/aswired"
 [[ $(cat "$package/VERSION") == "$version" ]] || { echo 'Package version mismatch.' >&2; exit 1; }
 "$package/bin/aswired-server" version | grep -F "$version" >/dev/null

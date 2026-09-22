@@ -5,7 +5,7 @@ on:
       version:
         description: Exact ASWired release version
         required: true
-        default: v1.0.3
+        default: v1.0.4
 permissions:
   contents: read
 concurrency:
@@ -14,6 +14,25 @@ concurrency:
 env:
   VERSION: ${{ inputs.version }}
 jobs:
+  extractor-compatibility:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python: ['3.11.2', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python scripts/test-extract-release.py
+      - name: Extract an actual release on this Python version
+        run: |
+          curl --fail --location --retry 3 --max-time 180 https://github.com/AyanamiReiChan/ASWired-Release/releases/download/v1.0.3/aswired_v1.0.3_linux_amd64.tar.gz -o previous.tar.gz
+          echo '4c5ebdb412b1238b290978a62bb43f1d4a733079af2576d6aedb99f3e4421179  previous.tar.gz' | sha256sum --check
+          python deploy/extract-release.py previous.tar.gz extracted-previous
+          extracted-previous/aswired/bin/aswired-server version
+          extracted-previous/aswired/runtime/node --version
+
   sources:
     runs-on: ubuntu-24.04
     outputs:
@@ -40,7 +59,7 @@ jobs:
           python3 scripts/test-updater.py
 
   frontends:
-    needs: sources
+    needs: [sources, extractor-compatibility]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -226,7 +245,8 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}
         run: |
-          tar -xzf "artifacts/aswired_${VERSION}_linux_${ARCH}.tar.gz"
+          python3 deploy/extract-release.py "artifacts/aswired_${VERSION}_linux_${ARCH}.tar.gz" extracted
+          mv extracted/aswired aswired
           python3 scripts/smoke.py aswired
       - name: Verify systemd installer and proxy
         run: |

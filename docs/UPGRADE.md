@@ -4,7 +4,7 @@
 
 | 路径 | 内容 |
 | --- | --- |
-| `/opt/aswired/releases/v1.0.3` | 只读版本目录，程序、网站、Node 运行时和脚本 |
+| `/opt/aswired/releases/v1.0.4` | 只读版本目录，程序、网站、Node 运行时和脚本 |
 | `/opt/aswired/current` | 当前版本软链接 |
 | `/etc/aswired/*.env` | 主控、网站、Komari 配置及服务密钥，root-only |
 | `/var/lib/aswired` | 主控数据库、加密密钥、身份密钥、日志、备份与 Agent 安装包 |
@@ -36,8 +36,8 @@ v1.0.2 起，正式组合安装且使用 SQLite 时，可在「设置 → 系统
 从 v1.0.1 或更早版本迁入时，先在服务器执行一次升级脚本：
 
 ```bash
-# 将 v1.0.3 换成实际已发布且准备升级到的版本。
-sudo bash /opt/aswired/current/update.sh v1.0.3
+# 将 v1.0.4 换成实际已发布且准备升级到的版本。
+sudo bash /opt/aswired/current/update.sh v1.0.4
 # 旧脚本不会安装新增的 path unit；升级后执行一次：
 sudo bash /opt/aswired/current/deploy/enable-updater.sh
 ```
@@ -59,7 +59,7 @@ sudo bash /opt/aswired/current/deploy/enable-updater.sh
 文件冷备份不能备份外部 PostgreSQL。先停止写入，使用受保护的 `PGPASSFILE` / pg_service.conf 和 `pg_dump --format=custom` 备份实际使用的数据库，验证 `pg_restore --list`，然后执行：
 
 ```bash
-sudo bash /opt/aswired/current/update.sh v1.0.3 --database-backup /secure/path/aswired.dump
+sudo bash /opt/aswired/current/update.sh v1.0.4 --database-backup /secure/path/aswired.dump
 ```
 
 脚本会保留你指定的备份文件，但不会验证它是否来自正确数据库；管理员必须核对目标、时间与可恢复性。启用加密数据库配置时不要删除 `database-active.enc` 强行回 SQLite，否则会切回旧数据。
@@ -105,6 +105,12 @@ sudo systemctl start aswired-server
 ```
 
 密码不放进命令参数或日志。该操作只重置已有账户，并撤销旧会话，不创建默认管理员。若使用手动配置 PostgreSQL，还需为命令提供与服务相同的数据库环境；通过页面迁移保存的加密配置则由数据目录自动加载。同时遗失 TOTP/Passkey 时可显式增加 `--clear-mfa`，登录后重新配置。
+
+## v1.0.4 旧 Python 更新兼容性
+
+部分 Debian 12 的 Python 3.11.2 没有 `tarfile.data_filter`。v1.0.2 / v1.0.3 的 `update.sh` 因此会在校验后、停止服务前报错 `Update Python to a security-supported version with tar extraction filters.`。此时旧服务继续运行，尚未切换程序或数据库。
+
+v1.0.4 使用独立的 `deploy/extract-release.py`，支持原有 Python，保留包内路径、链接和文件类型验证。旧脚本无法通过解压阶段，因而需要先修补旧安装：管理员应从固定的 v1.0.4 Git 源标签取得 `update.sh` 与 `deploy/extract-release.py`，审阅并验证其来源；保存当前两文件的备份，将它们安装为 root 所有且普通用户不可写，然后在页面重新检查并升级。只修补这两个脚本无需重启业务服务，也不会触发升级；勿改用不检查路径的 `extractall`。
 
 ## v1.0.3 流量统计优化
 

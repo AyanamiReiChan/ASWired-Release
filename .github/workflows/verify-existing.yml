@@ -8,7 +8,7 @@ on:
       version:
         description: Exact release version
         required: true
-        default: v1.0.3
+        default: v1.0.4
 permissions:
   contents: read
   actions: read
@@ -70,7 +70,9 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}
         run: |
-          tar -xzf "artifacts/aswired_${VERSION}_linux_${ARCH}.tar.gz"
+          python3 scripts/test-extract-release.py
+          python3 deploy/extract-release.py "artifacts/aswired_${VERSION}_linux_${ARCH}.tar.gz" extracted
+          mv extracted/aswired aswired
           python3 scripts/smoke.py aswired
       - name: Verify systemd installer and proxy
         run: |
