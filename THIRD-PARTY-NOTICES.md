@@ -5,7 +5,7 @@
 | 组件 | 许可证 | 对应源码 |
 | --- | --- | --- |
 | ASWired 网站、主控与 Agent 原创部分 | MIT | [网站](https://github.com/AyanamiReiChan/ASWired)、[主控](https://github.com/AyanamiReiChan/ASWired-Server)、[Agent](https://github.com/AyanamiReiChan/ASWired-Agent) |
-| 修改版 Xray-core | MPL-2.0 | [Agent 内的对应源码](https://github.com/AyanamiReiChan/ASWired-Agent/tree/v1.0.1/third_party/xray-core)，修改文件的 MPL 许可保持不变 |
+| 修改版 Xray-core | MPL-2.0 | [Agent 内的对应源码](https://github.com/AyanamiReiChan/ASWired-Agent/tree/v1.0.2/third_party/xray-core)，修改文件的 MPL 许可保持不变 |
 | Komari 与 komari-web 1.2.5-fix2 修改版 | MIT | [Komari fork](https://github.com/AyanamiReiChan/komari)，前端位于 frontend/ |
 | Node.js 24 运行时 | MIT 及捆绑依赖许可 | [Node.js](https://github.com/nodejs/node)，完整许可位于 runtime/LICENSE |
 

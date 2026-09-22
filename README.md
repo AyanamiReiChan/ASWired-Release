@@ -1,6 +1,6 @@
 # ASWired Release
 
-ASWired **v1.0.1** 部署仓库，包含网站、Go 主控、管理 Agent，以及我们修改的 **Komari 1.2.5-fix2-aswired.1.0.1**。这里保存部署脚本、配置和文档；编译好的程序在 [Releases](https://github.com/AyanamiReiChan/ASWired-Release/releases) 下载，无需在服务器安装 Go、npm 或编译源码。
+ASWired **v1.0.2** 部署仓库，包含网站、Go 主控、管理 Agent，以及我们修改的 **Komari 1.2.5-fix2-aswired.1.0.2**。这里保存部署脚本、配置和文档；编译好的程序在 [Releases](https://github.com/AyanamiReiChan/ASWired-Release/releases) 下载，无需在服务器安装 Go、npm 或编译源码。
 
 **没有默认管理员账户或密码。首次访问 ASWired 网页，由你自己设置用户名和密码。** 安装脚本只生成内部服务密钥，不创建用户。首次设置还需要服务器本地的 `setup-token`，用于防止他人抢先初始化。
 
@@ -36,7 +36,7 @@ sudo systemctl enable --now nginx
 以下命令需要普通 shell，不要在浏览器控制台运行。所有下载固定到明确版本，先校验再执行。
 
 ```bash
-version=v1.0.1
+version=v1.0.2
 case "$(uname -m)" in
   x86_64) arch=amd64 ;;
   aarch64|arm64) arch=arm64 ;;
@@ -81,7 +81,7 @@ sudo nginx -t
 sudo certbot renew --dry-run
 ```
 
-主控健康检查应返回 `status=ok`、`version=v1.0.1`；Komari 版本应为 `1.2.5-fix2-aswired.1.0.1`。安装器不会修改系统防火墙、覆盖已有数据或生成管理员账户。
+主控健康检查应返回 `status=ok`、`version=v1.0.2`；Komari 版本应为 `1.2.5-fix2-aswired.1.0.2`。安装器不会修改系统防火墙、覆盖已有数据或生成管理员账户。
 
 ## 4. 首次设置管理员
 
