@@ -1,0 +1,12 @@
+[Unit]
+Description=ASWired website certificate deployment
+After=network-online.target caddy.service
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /opt/aswired/current/deploy/site-certificates.py
+ExecStopPost=/usr/bin/python3 /opt/aswired/current/deploy/site-certificates.py --recover
+TimeoutStartSec=3min
+PrivateTmp=true
+ProtectHome=true

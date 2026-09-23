@@ -5,7 +5,7 @@ on:
       version:
         description: Exact ASWired release version
         required: true
-        default: v1.0.4
+        default: v1.0.5
 permissions:
   contents: read
 concurrency:
@@ -57,6 +57,21 @@ jobs:
           bash -n update.sh
           bash -n deploy/enable-updater.sh
           python3 scripts/test-updater.py
+          python3 scripts/test-site-certificates.py
+
+  website-certificates:
+    needs: sources
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install isolated certificate test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y caddy openssl
+          sudo useradd --system --no-create-home aswired
+      - name: Verify actual Caddy certificate switching and rollback
+        run: sudo env GITHUB_ACTIONS=true python3 scripts/smoke-site-certificates.py
 
   frontends:
     needs: [sources, extractor-compatibility]
@@ -111,7 +126,7 @@ jobs:
           if-no-files-found: error
 
   components:
-    needs: [sources, frontends]
+    needs: [sources, frontends, website-certificates]
     strategy:
       fail-fast: false
       matrix:
@@ -256,6 +271,13 @@ jobs:
           sudo bash aswired/install.sh panel.example.test probe.example.test
           sudo systemctl is-active aswired-server aswired-web komari nginx
           sudo systemctl is-active aswired-update.path
+          sudo systemctl is-active aswired-certificates.path
+          # v1.0.4 installs the new units but only starts the controller stack.
+          # Its existing update path must activate the new certificate watcher.
+          sudo systemctl stop aswired-server aswired-certificates.path
+          sudo systemctl disable aswired-certificates.path
+          sudo systemctl start aswired-server
+          sudo systemctl is-active aswired-certificates.path
           sudo env GITHUB_ACTIONS=true python3 scripts/smoke-updater.py
           curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: panel.example.test' http://127.0.0.1/api/status
           curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: probe.example.test' http://127.0.0.1/api/aswired/auth

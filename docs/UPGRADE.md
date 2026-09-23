@@ -4,7 +4,7 @@
 
 | 路径 | 内容 |
 | --- | --- |
-| `/opt/aswired/releases/v1.0.4` | 只读版本目录，程序、网站、Node 运行时和脚本 |
+| `/opt/aswired/releases/v1.0.5` | 只读版本目录，程序、网站、Node 运行时和脚本 |
 | `/opt/aswired/current` | 当前版本软链接 |
 | `/etc/aswired/*.env` | 主控、网站、Komari 配置及服务密钥，root-only |
 | `/var/lib/aswired` | 主控数据库、加密密钥、身份密钥、日志、备份与 Agent 安装包 |
@@ -12,6 +12,8 @@
 | `/var/lib/aswired-agent` | **节点上**的管理 Agent 状态、Xray 配置和日志 |
 
 主控 `data-encryption.key`、`master-identity.key`、`jwt.key` 必须和数据库一同保留。数据库迁移功能还会使用 `database-config.key` 与 `database-active.enc`。丢失密钥不能靠重新安装恢复密文或 Agent 信任关系。
+
+v1.0.5 的网站证书接管与附加备份要求见 [网站证书管理](WEBSITE-CERTIFICATES.md)。接管后需另备份 `/var/lib/aswired-certificates` 和 Caddy 的配置、存储及 systemd drop-in。
 
 ## 日常备份
 

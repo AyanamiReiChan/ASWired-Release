@@ -27,6 +27,7 @@ chown -R root:root "/opt/aswired/releases/$version"
 ln -s "releases/$version" /opt/aswired/current
 install -d -o aswired -g aswired -m 0700 /var/lib/aswired
 install -d -o root -g aswired -m 0750 /var/lib/aswired-updater
+install -d -o root -g root -m 0755 /var/lib/aswired-certificates
 install -d -o komari -g komari -m 0700 /var/lib/komari
 install -d -m 0700 /etc/aswired
 bridge=$(openssl rand -hex 32)
@@ -66,7 +67,7 @@ chmod 0644 /etc/nginx/sites-available/aswired.conf
 ln -s /etc/nginx/sites-available/aswired.conf /etc/nginx/sites-enabled/aswired.conf
 nginx -t
 systemctl daemon-reload
-systemctl enable --now aswired-server aswired-web komari aswired-update.path
+systemctl enable --now aswired-server aswired-web komari aswired-update.path aswired-certificates.path
 systemctl reload nginx
 curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:12889/healthz >/dev/null
 echo "Installed ASWired $version and integrated Komari. No administrator was created."

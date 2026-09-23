@@ -1,0 +1,7 @@
+[Unit]
+Description=Watch ASWired website certificate requests
+[Path]
+PathExists=/var/lib/aswired/site-certificate-request.json
+Unit=aswired-certificates.service
+[Install]
+WantedBy=multi-user.target
