@@ -49,3 +49,29 @@ with tempfile.TemporaryDirectory(prefix='aswired-updater-ci-') as temporary:
         assert (current/'VERSION').read_text().strip()=='v1.0.2'
         assert not (data/'update-request.json').exists()
 print('PASS: installed root worker, non-admin filesystem boundary, downgrade denial, actual subprocess success/failure and request cleanup')
+
+# Verify the real installed stack on a non-default frontend port. A legacy
+# worker's failed status is only reconciled when all target services pass.
+web_env=pathlib.Path('/etc/aswired/web.env')
+original_env=web_env.read_bytes()
+version=pathlib.Path('/opt/aswired/current/VERSION').read_text().strip()
+checker=['/usr/bin/python3','/opt/aswired/current/deploy/verify-health.py','--version',version]
+recovery=['/usr/bin/python3','/opt/aswired/current/deploy/update-request.py','--recover']
+subprocess.run(checker,check=True)
+try:
+    web_env.write_bytes(original_env.replace(b'PORT=3000',b'PORT=13000'))
+    subprocess.run(['systemctl','restart','aswired-web'],check=True)
+    subprocess.run(checker,check=True)
+    updater.status('failed',version,'legacy fixed-port verification failed')
+    subprocess.run(recovery,check=True)
+    assert json.loads((updater.STATE/'status.json').read_text())['phase']=='completed'
+    # An installed version file with a stopped service must remain a failure.
+    subprocess.run(['systemctl','stop','aswired-web'],check=True)
+    updater.status('failed',version,'simulated stopped frontend')
+    subprocess.run(recovery,check=True)
+    assert json.loads((updater.STATE/'status.json').read_text())['phase']=='failed'
+finally:
+    web_env.write_bytes(original_env)
+    subprocess.run(['systemctl','start','aswired-web'],check=True)
+subprocess.run(checker,check=True)
+print('PASS: configured frontend port 13000, legacy updater outcome reconciliation, and no false success with an unavailable service')

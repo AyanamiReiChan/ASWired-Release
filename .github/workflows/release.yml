@@ -5,7 +5,7 @@ on:
       version:
         description: Exact ASWired release version
         required: true
-        default: v1.0.5
+        default: v1.0.6
 permissions:
   contents: read
 concurrency:
@@ -57,6 +57,7 @@ jobs:
           bash -n update.sh
           bash -n deploy/enable-updater.sh
           python3 scripts/test-updater.py
+          python3 scripts/test-health-check.py
           python3 scripts/test-site-certificates.py
 
   website-certificates:

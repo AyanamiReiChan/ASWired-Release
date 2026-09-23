@@ -1,7 +1,7 @@
 {
   "web": {
     "repository": "https://github.com/AyanamiReiChan/ASWired",
-    "commit": "15eb6a22b0fef9a8c250b1b636082bdfc978b339"
+    "commit": "48a7d8d4083863bb77ca20abe845a2782affd422"
   },
   "server": {
     "repository": "https://github.com/AyanamiReiChan/ASWired-Server",

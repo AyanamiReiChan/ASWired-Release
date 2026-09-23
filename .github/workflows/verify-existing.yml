@@ -8,7 +8,7 @@ on:
       version:
         description: Exact release version
         required: true
-        default: v1.0.5
+        default: v1.0.6
 permissions:
   contents: read
   actions: read
@@ -81,6 +81,7 @@ jobs:
           sudo systemctl enable --now nginx
           sudo bash aswired/install.sh panel.example.test probe.example.test
           sudo systemctl is-active aswired-server aswired-web komari nginx
+          sudo env GITHUB_ACTIONS=true python3 scripts/smoke-updater.py
           curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: panel.example.test' http://127.0.0.1/api/status
           curl -f --retry 15 --retry-all-errors --retry-delay 1 -H 'Host: probe.example.test' http://127.0.0.1/api/aswired/auth
           test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: panel.example.test' http://127.0.0.1/api/internal/komari/redeem)" = 404

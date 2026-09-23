@@ -75,12 +75,9 @@ install -d -o root -g aswired -m 0750 /var/lib/aswired-updater
 install -d -o root -g root -m 0755 /var/lib/aswired-certificates
 systemctl daemon-reload
 systemctl enable --now aswired-update.path aswired-certificates.path
-if ! systemctl start aswired-server komari aswired-web || ! curl --fail --silent --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:12889/healthz >/dev/null; then
+if ! systemctl start aswired-server komari aswired-web || ! python3 "$target/deploy/verify-health.py" --version "$version"; then
   echo "Startup verification failed. Backup: $backup. Follow docs/UPGRADE.md before reverting databases." >&2
   exit 1
 fi
-systemctl is-active --quiet aswired-server komari aswired-web
-curl --fail --silent --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:25774/api/version >/dev/null
-curl --fail --silent --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:3000/ >/dev/null
 echo "Updated to $version. Consistent backup: $backup"
 echo 'HTTPS proxy, accounts, keys and environment settings were preserved. Check both websites and one Agent before deleting backups.'

@@ -74,6 +74,25 @@ def read_request():
         os.close(directory)
 
 
+def reconcile(row):
+    # A pre-v1.0.6 worker keeps executing its old update.sh after the release
+    # switch. ExecStopPost loads this new file, so it can verify the resulting
+    # installation using configured ports even if the old fixed-port check failed.
+    version = row.get('version', '')
+    try:
+        version_key(version)
+        if (CURRENT/'VERSION').read_text().strip() != version:
+            return False
+        result = subprocess.run(['/usr/bin/python3', str(CURRENT/'deploy/verify-health.py'),
+                                 '--version', version], check=False, timeout=75)
+        if result.returncode:
+            return False
+        status('completed', version, '升级完成，已按实际配置复核目标版本及全部服务', '/var/backups/aswired')
+        return True
+    except (ValueError, OSError, subprocess.SubprocessError):
+        return False
+
+
 def main():
     if os.geteuid() != 0:
         raise SystemExit('root required')
@@ -85,6 +104,8 @@ def main():
     if sys.argv[1:] == ['--recover']:
         try:
             row = json.loads((STATE / 'status.json').read_text())
+            if row.get('phase') in ('updating', 'failed') and reconcile(row):
+                return
             if row.get('phase') == 'updating':
                 status('failed', row.get('version', ''), '更新进程中断；请检查 aswired-update 服务日志和备份后处理')
         except FileNotFoundError:
@@ -107,6 +128,8 @@ def main():
             status('updating', version, '正在下载校验、备份并升级；服务会短暂重启')
             result = subprocess.run(['/bin/bash', str(CURRENT / 'update.sh'), version], check=False)
             if result.returncode:
+                if reconcile({'version':version}):
+                    return
                 status('failed', version, '升级未通过；请查看 aswired-update 服务日志和 /var/backups/aswired 备份')
                 return
             actual = (CURRENT / 'VERSION').read_text().strip()
