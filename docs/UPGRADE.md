@@ -4,7 +4,7 @@
 
 | 路径 | 内容 |
 | --- | --- |
-| `/opt/aswired/releases/v1.0.6` | 只读版本目录，程序、网站、Node 运行时和脚本 |
+| `/opt/aswired/releases/v1.0.7` | 只读版本目录，程序、网站、Node 运行时和脚本 |
 | `/opt/aswired/current` | 当前版本软链接 |
 | `/etc/aswired/*.env` | 主控、网站、Komari 配置及服务密钥，root-only |
 | `/var/lib/aswired` | 主控数据库、加密密钥、身份密钥、日志、备份与 Agent 安装包 |
