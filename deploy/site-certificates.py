@@ -217,10 +217,11 @@ def compile_config(original, state, request, targets, material=None, serial=''):
     for site in request['sites']:
         tag = 'aswired-site-' + site
         previous = state.pop(site, {})
-        loaders['load_files'] = [row for row in loaders.get('load_files', []) if row.get('tags') != [tag]]
+        loaders['load_files'] = [row for row in loaders.get('load_files', []) if tag not in row.get('tags', [])]
         for name, server in servers.items():
             server['tls_connection_policies'] = [p for p in server.get('tls_connection_policies', [])
-                if p.get('certificate_selection', {}).get('any_tag') != [tag]]
+                if not (previous and p.get('match') == {'sni':[previous['host']]}
+                    and p.get('certificate_selection') == {'serial_number':[previous['serial']]})]
             if not server['tls_connection_policies']:
                 server.pop('tls_connection_policies', None)
             auto = server.get('automatic_https', {})
@@ -252,7 +253,10 @@ def compile_config(original, state, request, targets, material=None, serial=''):
             # Preserve TLS versions, client authentication, ALPN and other policy
             # settings. Only this site's certificate selection is replaced.
             base['match'] = {'sni':[target['host']]}
-            base['certificate_selection'] = {'any_tag':[tag]}
+            # CertMagic reuses certificates by DER hash and does not update tags
+            # on a cached certificate. Select the validated leaf by serial so a
+            # shared/wildcard certificate also works across sites and reloads.
+            base['certificate_selection'] = {'serial_number':[serial]}
             server['tls_connection_policies'] = [base, *policies]
             skip = server.setdefault('automatic_https', {}).setdefault('skip_certificates', [])
             if target['host'] not in skip:
@@ -261,7 +265,7 @@ def compile_config(original, state, request, targets, material=None, serial=''):
             found = True
         if not found:
             raise ValueError('website is not served by local Caddy')
-        loaders['load_files'].append({**material, 'tags':[tag]})
+        loaders['load_files'].append({**material, 'tags':[tag, 'aswired-serial-'+serial]})
         state[site] = binding
     if not loaders.get('load_files'):
         loaders.pop('load_files', None)

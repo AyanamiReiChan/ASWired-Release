@@ -40,7 +40,7 @@ jobs:
           assert run['repository']['full_name']==os.environ['GITHUB_REPOSITORY']
           assert run['path']=='.github/workflows/release.yml' and run['event']=='workflow_dispatch'
           jobs={job['name']:job['conclusion'] for job in json.load(open('/tmp/build-jobs.json'))['jobs']}
-          for name in ['sources','frontends','components (amd64, ubuntu-24.04)','components (arm64, ubuntu-24.04-arm)','assemble']:
+          for name in ['website-certificates','sources','frontends','components (amd64, ubuntu-24.04)','components (arm64, ubuntu-24.04-arm)','assemble']:
               assert jobs.get(name)=='success',name
           PY
           ref=$(jq -r .head_sha /tmp/build-run.json)

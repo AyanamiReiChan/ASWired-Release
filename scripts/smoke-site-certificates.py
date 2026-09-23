@@ -88,6 +88,9 @@ with tempfile.TemporaryDirectory(prefix='aswired-certificate-ci-') as temporary:
             except ValueError:pass
             assert (state/'material'/request['id']/'privkey.pem').read_bytes()==before_key
             assert worker.served_fingerprint(targets['panel'])==new_fingerprint
+            assert worker.apply({**request,'id':'ci-deployment-request-repeat'})=='102'
+            assert worker.served_fingerprint(targets['panel'])==new_fingerprint
+            assert worker.served_fingerprint(targets['komari'])==new_fingerprint
             # The file selected by the service drop-in survives a real process restart.
             process.terminate();process.wait(timeout=15)
             process=start(state/'caddy/config.json')
@@ -109,6 +112,10 @@ with tempfile.TemporaryDirectory(prefix='aswired-certificate-ci-') as temporary:
             assert worker.caddy()['apps']['http']['servers']['test']['routes']==config['apps']['http']['servers']['test']['routes']
             assert not (state/'transaction.json').exists()
         print('PASS: real Caddy TLS switch for both sites, key mismatch rejection, restart persistence, private-key boundary, live rollback and return to external management')
+    except Exception:
+        log.flush()
+        print((root/'caddy.log').read_text()[-16000:],flush=True)
+        raise
     finally:
         for process in processes:
             if process.poll() is None:process.terminate();process.wait(timeout=15)
