@@ -4,7 +4,7 @@
 
 | 路径 | 内容 |
 | --- | --- |
-| `/opt/aswired/releases/v1.0.7` | 只读版本目录，程序、网站、Node 运行时和脚本 |
+| `/opt/aswired/releases/v1.0.8` | 只读版本目录，程序、网站、Node 运行时和脚本 |
 | `/opt/aswired/current` | 当前版本软链接 |
 | `/etc/aswired/*.env` | 主控、网站、Komari 配置及服务密钥，root-only |
 | `/var/lib/aswired` | 主控数据库、加密密钥、身份密钥、日志、备份与 Agent 安装包 |
@@ -123,6 +123,16 @@ sudo systemctl start aswired-server
 部分 Debian 12 的 Python 3.11.2 没有 `tarfile.data_filter`。v1.0.2 / v1.0.3 的 `update.sh` 因此会在校验后、停止服务前报错 `Update Python to a security-supported version with tar extraction filters.`。此时旧服务继续运行，尚未切换程序或数据库。
 
 v1.0.4 使用独立的 `deploy/extract-release.py`，支持原有 Python，保留包内路径、链接和文件类型验证。旧脚本无法通过解压阶段，因而需要先修补旧安装：管理员应从固定的 v1.0.4 Git 源标签取得 `update.sh` 与 `deploy/extract-release.py`，审阅并验证其来源；保存当前两文件的备份，将它们安装为 root 所有且普通用户不可写，然后在页面重新检查并升级。只修补这两个脚本无需重启业务服务，也不会触发升级；勿改用不检查路径的 `extractall`。
+
+## v1.0.8 主控 CPU 优化
+
+已有正式 SQLite 组合安装可在「设置 → 系统维护」检查并升级至 v1.0.8。该版本减少两类重复工作：行为限速维护在没有待释放处罚时跳过订阅和节点展开，并提前处理未启用的行为配置；逐节点额度统计按订阅、账号、周期和台账版本复用汇总结果。
+
+升级时自动创建逐节点统计需要的索引，保留现有账户、配置、密钥、内部中转分类及流量台账。首次查询或相关台账发生变化后仍运行原有 SUM；写入、修改、删除和恢复数据会使缓存失效，不需要手动清理统计。大台账首次建立索引可能增加启动用时，请以更新服务的最终健康检查为准。
+
+Agent 上报、5 秒维护、网页刷新周期、计费倍率、周期边界、配额判断及行为采样基线保持原样。远端 Agent 无需升级；组合包中的网站仅更新版本号，Komari 源码不变。CPU 应在升级后、恢复正常业务时按相同观察窗口对比，不能将本地查询耗时直接换算为线上 CPU 百分比。实现与验证说明见 [主控流量性能文档](https://github.com/AyanamiReiChan/ASWired-Server/blob/main/docs/traffic-performance.md)。
+
+本次新增的是统计索引和内存缓存，不改写台账格式。若因性能问题手动回退，应保留当前数据库和升级后的台账，按已验证的旧版本目录切回程序；不要仅为性能回退恢复旧数据库，以免丢失升级后的流量。
 
 ## v1.0.3 流量统计优化
 
