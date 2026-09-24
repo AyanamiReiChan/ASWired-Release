@@ -1,0 +1,7 @@
+[Unit]
+Description=Watch ASWired upgrade backup requests
+[Path]
+PathExists=/var/lib/aswired/upgrade-backup-request.json
+Unit=aswired-upgrade-backups.service
+[Install]
+WantedBy=multi-user.target

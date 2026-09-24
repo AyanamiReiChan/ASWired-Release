@@ -1,6 +1,6 @@
 [Unit]
 Description=ASWired controller
-Wants=network-online.target aswired-certificates.path
+Wants=network-online.target aswired-certificates.path aswired-upgrade-backups.path
 After=network-online.target
 [Service]
 Type=simple

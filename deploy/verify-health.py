@@ -97,7 +97,7 @@ def running_release(root):
             raise VerificationError('前端仍未使用目标版本网站目录')
         if (UNITS/(name+'.service')).read_bytes() != (root/'deploy/systemd'/(name+'.service')).read_bytes():
             raise VerificationError(name+' 服务定义与目标版本不一致')
-    for name in ['aswired-update.path', 'aswired-certificates.path']:
+    for name in ['aswired-update.path', 'aswired-certificates.path', 'aswired-upgrade-backups.path']:
         if service(name).get('ActiveState') != 'active':
             raise VerificationError(name+' 监听服务尚未运行')
 

@@ -1,6 +1,6 @@
 # ASWired Release
 
-ASWired **v1.0.8** 部署仓库，包含网站、Go 主控、管理 Agent，以及我们修改的 **Komari 1.2.5-fix2-aswired.1.0.8**。这里保存部署脚本、配置和文档；编译好的程序在 [Releases](https://github.com/AyanamiReiChan/ASWired-Release/releases) 下载，无需在服务器安装 Go、npm 或编译源码。
+ASWired **v1.0.9** 部署仓库，包含网站、Go 主控、管理 Agent，以及我们修改的 **Komari 1.2.5-fix2-aswired.1.0.9**。这里保存部署脚本、配置和文档；编译好的程序在 [Releases](https://github.com/AyanamiReiChan/ASWired-Release/releases) 下载，无需在服务器安装 Go、npm 或编译源码。
 
 **没有默认管理员账户或密码。首次访问 ASWired 网页，由你自己设置用户名和密码。** 安装脚本只生成内部服务密钥，不创建用户。首次设置还需要服务器本地的 `setup-token`，用于防止他人抢先初始化。
 
@@ -9,6 +9,8 @@ ASWired **v1.0.8** 部署仓库，包含网站、Go 主控、管理 Agent，以�
 网站证书管理及接管 Caddy 的操作见 [主控和 Komari 网站证书](docs/WEBSITE-CERTIFICATES.md)。升级默认保留已有 HTTPS 管理方式。
 
 内部中转账号的分类和统计边界见 [内部中转流量](docs/INTERNAL-TRANSFER-TRAFFIC.md)。
+
+v1.0.9 支持在系统设置中查看和删除升级前完整备份，包括旧版本已生成的备份。见 [网站管理升级备份](docs/UPGRADE-BACKUPS.md)。
 
 v1.0.8 减少行为限速检查和逐节点额度统计中的重复计算，保留原有计费、行为采样基线及 5 秒维护周期。升级和统计缓存说明见 [升级、备份与迁移](docs/UPGRADE.md#v108-主控-cpu-优化)。
 
@@ -42,7 +44,7 @@ sudo systemctl enable --now nginx
 以下命令需要普通 shell，不要在浏览器控制台运行。所有下载固定到明确版本，先校验再执行。
 
 ```bash
-version=v1.0.8
+version=v1.0.9
 case "$(uname -m)" in
   x86_64) arch=amd64 ;;
   aarch64|arm64) arch=arm64 ;;
@@ -87,7 +89,7 @@ sudo nginx -t
 sudo certbot renew --dry-run
 ```
 
-主控健康检查应返回 `status=ok`、`version=v1.0.8`；Komari 版本应为 `1.2.5-fix2-aswired.1.0.8`。安装器不会修改系统防火墙、覆盖已有数据或生成管理员账户。
+主控健康检查应返回 `status=ok`、`version=v1.0.9`；Komari 版本应为 `1.2.5-fix2-aswired.1.0.9`。安装器不会修改系统防火墙、覆盖已有数据或生成管理员账户。
 
 ## 4. 首次设置管理员
 

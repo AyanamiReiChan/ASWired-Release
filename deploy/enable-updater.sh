@@ -9,6 +9,7 @@ if [[ -e /var/lib/aswired-updater ]]; then
 fi
 install -d -o root -g aswired -m 0750 /var/lib/aswired-updater
 install -m 0644 "$base/deploy/systemd/aswired-update.service" "$base/deploy/systemd/aswired-update.path" /etc/systemd/system/
+install -m 0644 "$base/deploy/systemd/aswired-upgrade-backups.service" "$base/deploy/systemd/aswired-upgrade-backups.path" /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now aswired-update.path
+systemctl enable --now aswired-update.path aswired-upgrade-backups.path
 echo 'ASWired web updates enabled.'

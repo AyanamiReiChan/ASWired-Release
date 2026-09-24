@@ -1,11 +1,11 @@
 {
   "web": {
     "repository": "https://github.com/AyanamiReiChan/ASWired",
-    "commit": "802b114e8b258590f160f0d612d8e9a226a5836b"
+    "commit": "9b06d428abb54d30d87b9326409e8009448be5a8"
   },
   "server": {
     "repository": "https://github.com/AyanamiReiChan/ASWired-Server",
-    "commit": "2763d5e5ddd2a4846b6c240d135978335deee741"
+    "commit": "00faab2c3301df9b3954296cca32630a4e8233d5"
   },
   "agent": {
     "repository": "https://github.com/AyanamiReiChan/ASWired-Agent",

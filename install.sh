@@ -67,7 +67,7 @@ chmod 0644 /etc/nginx/sites-available/aswired.conf
 ln -s /etc/nginx/sites-available/aswired.conf /etc/nginx/sites-enabled/aswired.conf
 nginx -t
 systemctl daemon-reload
-systemctl enable --now aswired-server aswired-web komari aswired-update.path aswired-certificates.path
+systemctl enable --now aswired-server aswired-web komari aswired-update.path aswired-certificates.path aswired-upgrade-backups.path
 systemctl reload nginx
 curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:12889/healthz >/dev/null
 echo "Installed ASWired $version and integrated Komari. No administrator was created."

@@ -49,7 +49,7 @@ systemctl stop aswired-web komari aswired-server
 if [[ -e /var/lib/aswired/database-pending.enc ]] || { [[ -e /var/lib/aswired/database-active.enc ]] && [[ -z $db_backup ]]; }; then
   echo 'Database state changed while downloading; upgrade cancelled before switching.' >&2; exit 1
 fi
-if ! tar --exclude=aswired/update-request.json --exclude=aswired/site-certificate-request.json --exclude=aswired/agent-releases --exclude=aswired/backups --exclude=aswired/logs -czf "$backup/data.tar.gz" -C /var/lib aswired komari; then
+if ! tar --exclude=aswired/update-request.json --exclude=aswired/site-certificate-request.json --exclude=aswired/upgrade-backup-request.json --exclude=aswired/agent-releases --exclude=aswired/backups --exclude=aswired/logs -czf "$backup/data.tar.gz" -C /var/lib aswired komari; then
   systemctl start aswired-server komari aswired-web
   echo 'Backup failed; update cancelled.' >&2; exit 1
 fi
@@ -74,7 +74,7 @@ install -m 0644 "$target"/deploy/systemd/*.path /etc/systemd/system/
 install -d -o root -g aswired -m 0750 /var/lib/aswired-updater
 install -d -o root -g root -m 0755 /var/lib/aswired-certificates
 systemctl daemon-reload
-systemctl enable --now aswired-update.path aswired-certificates.path
+systemctl enable --now aswired-update.path aswired-certificates.path aswired-upgrade-backups.path
 if ! systemctl start aswired-server komari aswired-web || ! python3 "$target/deploy/verify-health.py" --version "$version"; then
   echo "Startup verification failed. Backup: $backup. Follow docs/UPGRADE.md before reverting databases." >&2
   exit 1

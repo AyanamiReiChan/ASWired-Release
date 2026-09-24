@@ -1,0 +1,14 @@
+[Unit]
+Description=ASWired upgrade backup metadata and deletion worker
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /opt/aswired/current/deploy/upgrade-backups.py
+ExecStopPost=/usr/bin/python3 /opt/aswired/current/deploy/upgrade-backups.py --recover
+TimeoutStartSec=5min
+PrivateTmp=true
+ProtectHome=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/aswired /var/lib/aswired-updater -/var/backups/aswired /run/lock
