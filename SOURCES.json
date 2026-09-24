@@ -9,7 +9,7 @@
   },
   "agent": {
     "repository": "https://github.com/AyanamiReiChan/ASWired-Agent",
-    "commit": "d9cdff40d80d4b1606bb41b8176ccee8e3cee98f"
+    "commit": "b74d01d11a1acf3656352804193f28960c24a356"
   },
   "komari": {
     "repository": "https://github.com/AyanamiReiChan/komari",
