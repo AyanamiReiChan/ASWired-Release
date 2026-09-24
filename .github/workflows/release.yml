@@ -5,7 +5,7 @@ on:
       version:
         description: Exact ASWired release version
         required: true
-        default: v1.0.9
+        default: v1.0.10
 permissions:
   contents: read
 concurrency:
@@ -187,7 +187,9 @@ jobs:
           (cd source-komari && go test -p 2 ./... && go vet ./...)
       - name: Race checks
         if: matrix.arch == 'amd64'
-        run: cd source-server && go test -race -p 2 ./...
+        run: |
+          (cd source-server && go test -race -p 2 ./...)
+          (cd source-agent && go test -race -p 2 ./internal/runtime)
       - name: Build pinned native binaries and Node runtime
         env:
           SERVER_COMMIT: ${{ needs.sources.outputs.server }}

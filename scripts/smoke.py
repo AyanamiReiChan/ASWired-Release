@@ -61,6 +61,18 @@ with tempfile.TemporaryDirectory(prefix='aswired-smoke-') as temporary:
         token=login['token'];auth={'MM-Authorization':token}
         assert request(control,'/api/setup','POST',setup)[0]==409
         assert request(control,'/api/state',headers=auth)[0]==200
+        status,payload,_=request(control,'/api/settings',headers=auth)
+        settings=payload['settings']
+        assert status==200 and settings['blockProxyIPv6'] is True
+        limits=settings['behaviorLimits']
+        assert limits['enabled'] is True and limits['maxGapSeconds']==15
+        assert [(r['thresholdMbps'],r['durationSeconds'],r['limitMbps'],r['penaltySeconds']) for r in limits['rules']]==[(80,600,30,600),(200,120,50,600)]
+        # Explicit opt-out and explicit empty rules must survive a save/reload.
+        settings.update(blockProxyIPv6=False,behaviorLimits={'enabled':False,'rules':[]})
+        assert request(control,'/api/settings','PUT',{'settings':settings},auth)[0]==200
+        status,payload,_=request(control,'/api/settings',headers=auth)
+        saved=payload['settings']
+        assert status==200 and saved['blockProxyIPv6'] is False and saved['behaviorLimits']==settings['behaviorLimits']
         stored=db.execute('select password_hash from users where username=?',(setup['username'],)).fetchone()[0]
         assert stored!=password and stored.startswith('$2')
         member_password=secrets.token_urlsafe(24)
