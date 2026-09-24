@@ -67,12 +67,31 @@ with tempfile.TemporaryDirectory(prefix='aswired-smoke-') as temporary:
         limits=settings['behaviorLimits']
         assert limits['enabled'] is True and limits['maxGapSeconds']==15
         assert [(r['thresholdMbps'],r['durationSeconds'],r['limitMbps'],r['penaltySeconds']) for r in limits['rules']]==[(80,600,30,600),(200,120,50,600)]
+        # The management page catalogs configured rules without expanding every member/node.
+        limit_paths=('/api/limits/rules','/api/limits/triggers')
+        for path in limit_paths:
+            assert request(control,path)[0]==401
+        status,catalog,_=request(control,limit_paths[0],headers=auth)
+        assert status==200 and len(catalog['groups'])==1
+        default_group=catalog['groups'][0]
+        assert default_group['scope']=='global' and default_group['mode']=='builtin'
+        assert default_group['enabled'] is True
+        assert all(rule['kind']=='behavior' and rule['enabled'] is True for rule in default_group['rules'])
+        assert [(r['thresholdMbps'],r['durationSeconds'],r['limitMbps'],r['penaltySeconds']) for r in default_group['rules']]==[(80,600,30,600),(200,120,50,600)]
+        status,triggers,_=request(control,limit_paths[1],headers=auth)
+        assert status==200 and triggers['rows']==[] and triggers['truncated'] is False
+        assert triggers['summary']=={'triggerCount':0,'userCount':0,'activeCount':0,'activeUserCount':0}
         # Explicit opt-out and explicit empty rules must survive a save/reload.
         settings.update(blockProxyIPv6=False,behaviorLimits={'enabled':False,'rules':[]})
         assert request(control,'/api/settings','PUT',{'settings':settings},auth)[0]==200
         status,payload,_=request(control,'/api/settings',headers=auth)
         saved=payload['settings']
         assert status==200 and saved['blockProxyIPv6'] is False and saved['behaviorLimits']==settings['behaviorLimits']
+        status,catalog,_=request(control,limit_paths[0],headers=auth)
+        assert status==200 and len(catalog['groups'])==1
+        disabled_group=catalog['groups'][0]
+        assert disabled_group['scope']=='global' and disabled_group['mode']=='disabled'
+        assert disabled_group['enabled'] is False and disabled_group['rules']==[]
         stored=db.execute('select password_hash from users where username=?',(setup['username'],)).fetchone()[0]
         assert stored!=password and stored.startswith('$2')
         member_password=secrets.token_urlsafe(24)
@@ -82,6 +101,8 @@ with tempfile.TemporaryDirectory(prefix='aswired-smoke-') as temporary:
         row['application']='aswired'
         status,_,_=request(control,'/api/collections/members','POST',{'row':row},auth);assert status==200,status
         status,member,_=request(control,'/api/login','POST',{'username':row['username'],'password':member_password});assert status==200
+        for path in limit_paths:
+            assert request(control,path,headers={'MM-Authorization':member['token']})[0]==403
         assert request(control,'/api/komari/login','POST',headers={'MM-Authorization':member['token']})[0]==403
         assert request(control,'/api/komari/login','POST')[0]==401
         status,login,_=request(control,'/api/komari/login','POST',headers=auth)
@@ -99,7 +120,7 @@ with tempfile.TemporaryDirectory(prefix='aswired-smoke-') as temporary:
         assert request(control,'/api/state',headers=auth)[0]==401
         status,me,_=request(probe,'/api/me',headers={'Cookie':cookie});assert status==200 and me['logged_in'] is False
         db.close()
-        print('PASS: compiled stack, pristine first-run setup, hashed chosen password, initialization lock, shared administrator login, member denial, ticket replay, session isolation and cross-service logout.')
+        print('PASS: compiled stack, pristine first-run setup, default/disabled limit catalog, empty trigger history, limits permissions, hashed chosen password, initialization lock, shared administrator login, member denial, ticket replay, session isolation and cross-service logout.')
     finally:
         for proc in reversed(processes):proc.terminate()
         for proc in processes:
