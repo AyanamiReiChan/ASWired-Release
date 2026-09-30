@@ -1,6 +1,6 @@
 # ASWired Release
 
-ASWired **v1.0.12** 部署仓库，包含网站、Go 主控、管理 Agent，以及我们修改的 **Komari 1.2.5-fix2-aswired.1.0.12**。这里保存部署脚本、配置和文档；编译好的程序在 [Releases](https://github.com/AyanamiReiChan/ASWired-Release/releases) 下载，无需在服务器安装 Go、npm 或编译源码。
+ASWired **v1.0.13** 部署仓库，包含网站、Go 主控、管理 Agent，以及我们修改的 **Komari 1.2.5-fix2-aswired.1.0.13**。这里保存部署脚本、配置和文档；编译好的程序在 [Releases](https://github.com/AyanamiReiChan/ASWired-Release/releases) 下载，无需在服务器安装 Go、npm 或编译源码。
 
 **没有默认管理员账户或密码。首次访问 ASWired 网页，由你自己设置用户名和密码。** 安装脚本只生成内部服务密钥，不创建用户。首次设置还需要服务器本地的 `setup-token`，用于防止他人抢先初始化。
 
@@ -9,6 +9,8 @@ ASWired **v1.0.12** 部署仓库，包含网站、Go 主控、管理 Agent，以
 网站证书管理及接管 Caddy 的操作见 [主控和 Komari 网站证书](docs/WEBSITE-CERTIFICATES.md)。升级默认保留已有 HTTPS 管理方式。
 
 内部中转账号的分类和统计边界见 [内部中转流量](docs/INTERNAL-TRANSFER-TRAFFIC.md)。
+
+v1.0.13 新增“共享流量池”套餐类型，已有套餐也可切换。所有套餐实例共用套餐总额度，首次切换计入各实例本期已用，池耗尽后全员执行套餐超额策略。升级不会自动改变旧套餐类型；从 v1.0.12 升级无需更新远端 Agent。见 [共享流量池使用说明](docs/SHARED-TRAFFIC-POOLS.md)。
 
 v1.0.12 优化持续流量上报时的 SQLite 统计和默认限速资格检查，减少重复读取历史台账。从 v1.0.11 升级无需更新远端 Agent。升级说明见 [主控持续流量优化](docs/UPGRADE.md#v1012-主控持续流量优化)。
 
@@ -50,7 +52,7 @@ sudo systemctl enable --now nginx
 以下命令需要普通 shell，不要在浏览器控制台运行。所有下载固定到明确版本，先校验再执行。
 
 ```bash
-version=v1.0.12
+version=v1.0.13
 case "$(uname -m)" in
   x86_64) arch=amd64 ;;
   aarch64|arm64) arch=arm64 ;;
@@ -95,7 +97,7 @@ sudo nginx -t
 sudo certbot renew --dry-run
 ```
 
-主控健康检查应返回 `status=ok`、`version=v1.0.12`；Komari 版本应为 `1.2.5-fix2-aswired.1.0.12`。安装器不会修改系统防火墙、覆盖已有数据或生成管理员账户。
+主控健康检查应返回 `status=ok`、`version=v1.0.13`；Komari 版本应为 `1.2.5-fix2-aswired.1.0.13`。安装器不会修改系统防火墙、覆盖已有数据或生成管理员账户。
 
 ## 4. 首次设置管理员
 
