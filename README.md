@@ -1,6 +1,6 @@
 # ASWired Release
 
-ASWired **v1.0.15** 部署仓库，包含网站、Go 主控、管理 Agent，以及我们修改的 **Komari 1.2.5-fix2-aswired.1.0.15**。这里保存部署脚本、配置和文档；编译好的程序在 [Releases](https://github.com/AyanamiReiChan/ASWired-Release/releases) 下载，无需在服务器安装 Go、npm 或编译源码。
+ASWired **v1.0.16** 部署仓库，包含网站、Go 主控、管理 Agent，以及我们修改的 **Komari 1.2.5-fix2-aswired.1.0.16**。这里保存部署脚本、配置和文档；编译好的程序在 [Releases](https://github.com/AyanamiReiChan/ASWired-Release/releases) 下载，无需在服务器安装 Go、npm 或编译源码。
 
 **没有默认管理员账户或密码。首次访问 ASWired 网页，由你自己设置用户名和密码。** 安装脚本只生成内部服务密钥，不创建用户。首次设置还需要服务器本地的 `setup-token`，用于防止他人抢先初始化。
 
@@ -9,6 +9,8 @@ ASWired **v1.0.15** 部署仓库，包含网站、Go 主控、管理 Agent，以
 网站证书管理及接管 Caddy 的操作见 [主控和 Komari 网站证书](docs/WEBSITE-CERTIFICATES.md)。升级默认保留已有 HTTPS 管理方式。
 
 内部中转账号的分类和统计边界见 [内部中转流量](docs/INTERNAL-TRANSFER-TRAFFIC.md)。
+
+v1.0.16 新增业务端口 IP 白名单，由 Linux 管理 Agent 执行 nftables 来源限制，网站保存策略并展示实际执行结果。使用此功能需另行升级目标服务器的管理 Agent，并准备 nftables。见 [业务端口 IP 白名单](docs/FIREWALL-ALLOWLIST.md)。
 
 v1.0.15 将总览中的服务器排行默认改为“整机本期用量”，按每台服务器自己的账期账本及已保存校准排序，并保留代理业务流量排行。用户排行继续使用加权代理流量；未取得整机账期数据的服务器明确显示未知。无需更新远端 Agent。见 [流量排行统计口径](docs/TRAFFIC-RANKING.md)。
 
@@ -56,7 +58,7 @@ sudo systemctl enable --now nginx
 以下命令需要普通 shell，不要在浏览器控制台运行。所有下载固定到明确版本，先校验再执行。
 
 ```bash
-version=v1.0.15
+version=v1.0.16
 case "$(uname -m)" in
   x86_64) arch=amd64 ;;
   aarch64|arm64) arch=arm64 ;;
@@ -101,7 +103,7 @@ sudo nginx -t
 sudo certbot renew --dry-run
 ```
 
-主控健康检查应返回 `status=ok`、`version=v1.0.15`；Komari 版本应为 `1.2.5-fix2-aswired.1.0.15`。安装器不会修改系统防火墙、覆盖已有数据或生成管理员账户。
+主控健康检查应返回 `status=ok`、`version=v1.0.16`；Komari 版本应为 `1.2.5-fix2-aswired.1.0.16`。安装器不会修改系统防火墙、覆盖已有数据或生成管理员账户。
 
 ## 4. 首次设置管理员
 
