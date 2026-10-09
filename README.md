@@ -1,6 +1,6 @@
 # ASWired Release
 
-ASWired **v1.0.16** 部署仓库，包含网站、Go 主控、管理 Agent，以及我们修改的 **Komari 1.2.5-fix2-aswired.1.0.16**。这里保存部署脚本、配置和文档；编译好的程序在 [Releases](https://github.com/AyanamiReiChan/ASWired-Release/releases) 下载，无需在服务器安装 Go、npm 或编译源码。
+ASWired **v1.0.17** 部署仓库，包含网站、Go 主控、管理 Agent，以及我们修改的 **Komari 1.2.5-fix2-aswired.1.0.17**。这里保存部署脚本、配置和文档；编译好的程序在 [Releases](https://github.com/AyanamiReiChan/ASWired-Release/releases) 下载，无需在服务器安装 Go、npm 或编译源码。
 
 **没有默认管理员账户或密码。首次访问 ASWired 网页，由你自己设置用户名和密码。** 安装脚本只生成内部服务密钥，不创建用户。首次设置还需要服务器本地的 `setup-token`，用于防止他人抢先初始化。
 
@@ -9,6 +9,8 @@ ASWired **v1.0.16** 部署仓库，包含网站、Go 主控、管理 Agent，以
 网站证书管理及接管 Caddy 的操作见 [主控和 Komari 网站证书](docs/WEBSITE-CERTIFICATES.md)。升级默认保留已有 HTTPS 管理方式。
 
 内部中转账号的分类和统计边界见 [内部中转流量](docs/INTERNAL-TRANSFER-TRAFFIC.md)。
+
+v1.0.17 在用户管理中直接展示套餐管理入口，支持为同一用户追加不同套餐，并在用户自己的页面选择全部或指定套餐实例合并订阅。原有套餐实例、额度、凭据和有效期保留；远端 Agent 无需升级。见 [多套餐绑定与合并订阅](docs/MULTI-PLAN-SUBSCRIPTIONS.md)。
 
 v1.0.16 新增业务端口 IP 白名单，由 Linux 管理 Agent 执行 nftables 来源限制，网站保存策略并展示实际执行结果。使用此功能需另行升级目标服务器的管理 Agent，并准备 nftables。见 [业务端口 IP 白名单](docs/FIREWALL-ALLOWLIST.md)。
 
@@ -58,7 +60,7 @@ sudo systemctl enable --now nginx
 以下命令需要普通 shell，不要在浏览器控制台运行。所有下载固定到明确版本，先校验再执行。
 
 ```bash
-version=v1.0.16
+version=v1.0.17
 case "$(uname -m)" in
   x86_64) arch=amd64 ;;
   aarch64|arm64) arch=arm64 ;;
